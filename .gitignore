@@ -1,0 +1,6 @@
+# 忽略 Google 雲端金鑰 (最高機密，絕對不能上傳)
+credentials.json
+
+# 忽略下午核銷用的 TXT 檔與歸檔資料夾 (保護員工個資)
+*.TXT
+OK/
