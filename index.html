@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中創園區 - 用餐預測戰情室 V3 (全自動雲端版)</title>
+    <title>中創園區 - 用餐預測戰情室 V4 (含排行榜)</title>
     <!-- 引入 Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 PapaParse -->
@@ -18,8 +18,6 @@
         .badge-itri { background-color: #10b981; } 
         .badge-cash { background-color: #f59e0b; color: #1e293b; } 
         .refresh-tag { font-size: 0.8rem; color: #94a3b8; }
-        
-        /* 準確率標籤樣式 (服貼右上角緞帶) */
         .accuracy-badge {
             position: absolute; top: 0; right: 0;
             background-color: rgba(255,255,255,0.2); 
@@ -96,7 +94,7 @@
             </div>
         </div>
 
-        <!-- ⚠️ 預測失敗 (放鳥) 名單區 (預設隱藏) -->
+        <!-- ⚠️ 預測失敗 (放鳥) 名單區 -->
         <div class="table-container border border-danger" id="no-show-container" style="display: none;">
             <h5 class="text-danger mb-3">⚠️ 預測會來卻沒來 (未命中名單)</h5>
             <div class="table-responsive">
@@ -111,7 +109,6 @@
                         </tr>
                     </thead>
                     <tbody id="noshow-body">
-                        <!-- 資料由 JS 自動填充 -->
                     </tbody>
                 </table>
             </div>
@@ -132,167 +129,149 @@
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <!-- 資料由 JS 自動填充 -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- 🏆 新增：戰力排行榜區塊 -->
+        <h4 class="fw-bold mt-5 mb-3">🏆 園區常客排行榜 (Top 5)</h4>
+        <div class="row g-3 mb-5">
+            <div class="col-md-4">
+                <div class="table-container border-top border-success border-3">
+                    <h5 class="text-success mb-3">🏢 工研院</h5>
+                    <table class="table table-sm table-hover text-center"><tbody id="lb-itri"></tbody></table>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="table-container border-top border-primary border-3">
+                    <h5 class="text-primary mb-3">🏭 環電</h5>
+                    <table class="table table-sm table-hover text-center"><tbody id="lb-usi"></tbody></table>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="table-container border-top border-warning border-3">
+                    <h5 class="text-warning mb-3">💰 現金/訪客</h5>
+                    <table class="table table-sm table-hover text-center"><tbody id="lb-cash"></tbody></table>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // 🌟 兩把雲端金鑰：預測大腦 API 與 實際卡機 API
+        // 🌟 三把雲端金鑰：預測大腦 API、實際卡機 API、主檔(排行榜) API
         const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
+        const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
 
+        // 載入預測與實際對帳資料
         function updateDashboard() {
-            // 第一步：先抓取早上的預測名單
             Papa.parse(predictUrl, {
-                download: true,
-                header: true,
+                download: true, header: true,
                 complete: function(predictResults) {
                     const rows = predictResults.data;
                     let total = 0, usi = 0, itri = 0, cash = 0;
-                    let html = '';
-                    let predictedList = []; // 存入記憶體
-
+                    let html = ''; let predictedList = [];
                     document.getElementById('last-update').innerText = '最後更新：' + new Date().toLocaleString();
 
                     rows.forEach(row => {
-                        const isRegular = row['是否預測用餐'] || row['是否為常客']; 
-                        if (isRegular === '是') {
+                        if (row['是否預測用餐'] === '是' || row['是否為常客'] === '是') {
                             const comp = row['公司'] || '未知';
                             const name = row['Name'] || row['姓名'] || '未辨識';
-                            const empid = row['EmpID'] || row['工號'] || '';
                             const cardid = row['卡號'] || row['CardID'] || ''; 
-                            // 🌟 強化版：不管試算表是 EntryTime 還是 Entry Time 都能抓到
                             const time = row['EntryTime'] || row['Entry Time'] || row['進園時間'] || '-';
                             const door = row['DoorDsc'] || '-';
 
-                            predictedList.push({ empid: empid.trim(), cardid: cardid.trim(), name: name.trim(), comp: comp, time: time, door: door });
-
+                            predictedList.push({ cardid: cardid.trim(), name: name.trim(), comp: comp, time: time, door: door });
                             total++;
-                            if (comp.includes('環電')) usi++;
-                            else if (comp.includes('工研院')) itri++;
-                            else cash++;
-
+                            if (comp.includes('環電')) usi++; else if (comp.includes('工研院')) itri++; else cash++;
                             let badgeClass = comp.includes('環電') ? 'badge-usi' : (comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-
-                            html += `
-                                <tr class="border-bottom border-secondary">
-                                    <td>${time}</td>
-                                    <td>${door}</td>
-                                    <td><span class="badge ${badgeClass}">${comp}</span></td>
-                                    <td class="fw-bold">${name}</td>
-                                    <!-- 🌟 修正：改用 text-secondary 深灰色，解決白底隱形問題 -->
-                                    <td class="text-secondary" style="font-size:0.85rem;">${cardid}</td>
-                                </tr>
-                            `;
+                            html += `<tr class="border-bottom border-secondary"><td>${time}</td><td>${door}</td><td><span class="badge ${badgeClass}">${comp}</span></td><td class="fw-bold">${name}</td><td class="text-secondary" style="font-size:0.85rem;">${cardid}</td></tr>`;
                         }
                     });
-
-                    // 畫上早盤預測數字
-                    document.getElementById('total-count').innerText = total;
-                    document.getElementById('usi-count').innerText = usi;
-                    document.getElementById('itri-count').innerText = itri;
-                    document.getElementById('cash-count').innerText = cash;
+                    document.getElementById('total-count').innerText = total; document.getElementById('usi-count').innerText = usi;
+                    document.getElementById('itri-count').innerText = itri; document.getElementById('cash-count').innerText = cash;
                     document.getElementById('table-body').innerHTML = html;
-
-                    // 第二步：呼叫函數去抓取下午的實際名單進行比對
                     fetchActualAndCompare(predictedList);
                 }
             });
         }
 
+        // 對帳邏輯
         function fetchActualAndCompare(predictedList) {
             Papa.parse(actualUrl, {
-                download: true,
-                header: true,
+                download: true, header: true,
                 complete: function(actualResults) {
-                    const actualRows = actualResults.data;
-                    
-                    // 抓出實際名單中的所有 CardID
-                    const actualIdentifiers = actualRows.map(row => {
-                        return (row['CardID'] || '').trim();
-                    }).filter(id => id !== '');
-
-                    // 🎯 智慧判斷：如果實際名單是空的(早上)，就隱藏準確率，提早結束！
+                    const actualIdentifiers = actualResults.data.map(row => (row['CardID'] || '').trim()).filter(id => id !== '');
                     if (actualIdentifiers.length === 0) {
                         hideAcc('total'); hideAcc('usi'); hideAcc('itri'); hideAcc('cash');
-                        document.getElementById('no-show-container').style.display = 'none';
-                        return;
+                        document.getElementById('no-show-container').style.display = 'none'; return;
                     }
-
-                    // 開始計算命中率
-                    let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0;
-                    let noShowHtml = '';
-                    let noShowCount = 0;
-
+                    let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0, noShowHtml = '', noShowCount = 0;
                     predictedList.forEach(p => {
                         if (p.cardid && actualIdentifiers.includes(p.cardid)) {
-                            // 命中
-                            hitTotal++;
-                            if (p.comp.includes('環電')) hitUsi++;
-                            else if (p.comp.includes('工研院')) hitItri++;
-                            else hitCash++;
+                            hitTotal++; if (p.comp.includes('環電')) hitUsi++; else if (p.comp.includes('工研院')) hitItri++; else hitCash++;
                         } else {
-                            // 放鳥
-                            noShowCount++;
-                            let badgeClass = p.comp.includes('環電') ? 'badge-usi' : (p.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                            noShowHtml += `
-                                <tr class="border-bottom border-danger">
-                                    <td>${p.time}</td>
-                                    <td>${p.door}</td>
-                                    <td><span class="badge ${badgeClass}">${p.comp}</span></td>
-                                    <td class="fw-bold text-danger">${p.name}</td>
-                                    <!-- 🌟 修正：放鳥名單的卡號也改用深灰色 -->
-                                    <td class="text-secondary" style="font-size:0.85rem;">${p.cardid}</td>
-                                </tr>
-                            `;
+                            noShowCount++; let badgeClass = p.comp.includes('環電') ? 'badge-usi' : (p.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
+                            noShowHtml += `<tr class="border-bottom border-danger"><td>${p.time}</td><td>${p.door}</td><td><span class="badge ${badgeClass}">${p.comp}</span></td><td class="fw-bold text-danger">${p.name}</td><td class="text-secondary" style="font-size:0.85rem;">${p.cardid}</td></tr>`;
+                        }
+                    });
+                    const calcAcc = (hit, predicted) => predicted > 0 ? Math.round((hit / predicted) * 100) : 0;
+                    showAcc('total', calcAcc(hitTotal, predictedList.length), hitTotal); showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
+                    showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); showAcc('cash', calcAcc(hitCash, predictedList.filter(p => !p.comp.includes('環電') && !p.comp.includes('工研院')).length), hitCash);
+                    if (noShowCount > 0) { document.getElementById('no-show-container').style.display = 'block'; document.getElementById('noshow-body').innerHTML = noShowHtml; } 
+                    else { document.getElementById('no-show-container').style.display = 'none'; }
+                }
+            });
+        }
+        function showAcc(id, acc, hit) { const b = document.getElementById(`acc-${id}`); b.style.display = 'block'; b.innerText = `準確率 ${acc}%`; b.style.backgroundColor = acc >= 90 ? 'rgba(16, 185, 129, 0.9)' : (acc >= 70 ? 'rgba(245, 158, 11, 0.9)' : 'rgba(239, 68, 68, 0.9)'); document.getElementById(`actual-${id}-text`).style.display = 'block'; document.getElementById(`actual-${id}-text`).querySelector('span').innerText = hit;}
+        function hideAcc(id) { document.getElementById(`acc-${id}`).style.display = 'none'; document.getElementById(`actual-${id}-text`).style.display = 'none'; }
+
+        // 🏆 載入排行榜邏輯
+        function loadLeaderboard() {
+            Papa.parse(masterUrl, {
+                download: true, header: true,
+                complete: function(results) {
+                    const rows = results.data;
+                    let listItri = [], listUsi = [], listCash = [];
+                    
+                    rows.forEach(row => {
+                        const name = row['Name'] || row['姓名'];
+                        const comp = row['公司'] || '';
+                        // 抓取用餐次數並轉為數字，如果空白就當作 0
+                        const count = parseInt(row['13天內用餐次數'] || row['DiningCount'] || 0); 
+                        
+                        if (name && count > 0) {
+                            let obj = { name: name, count: count };
+                            if (comp.includes('工研院')) listItri.push(obj);
+                            else if (comp.includes('環電')) listUsi.push(obj);
+                            else listCash.push(obj);
                         }
                     });
 
-                    // 算準確率函式： (實際命中數 / 早上預測數) * 100
-                    const calcAcc = (hit, predicted) => predicted > 0 ? Math.round((hit / predicted) * 100) : 0;
-                    
-                    const accTotal = calcAcc(hitTotal, predictedList.length);
-                    const accUsi = calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length);
-                    const accItri = calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length);
-                    const accCash = calcAcc(hitCash, predictedList.filter(p => !p.comp.includes('環電') && !p.comp.includes('工研院')).length);
-
-                    showAcc('total', accTotal, hitTotal);
-                    showAcc('usi', accUsi, hitUsi);
-                    showAcc('itri', accItri, hitItri);
-                    showAcc('cash', accCash, hitCash);
-
-                    if (noShowCount > 0) {
-                        document.getElementById('no-show-container').style.display = 'block';
-                        document.getElementById('noshow-body').innerHTML = noShowHtml;
-                    } else {
-                        document.getElementById('no-show-container').style.display = 'none';
+                    // 排序並產生 HTML (抓前五名)
+                    function generateHTML(list) {
+                        list.sort((a, b) => b.count - a.count); // 由大排到小
+                        let top5 = list.slice(0, 5);
+                        let html = '';
+                        top5.forEach((item, index) => {
+                            let medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index+1}.`));
+                            html += `<tr><td class="text-start">${medal} ${item.name}</td><td class="text-end fw-bold text-info">${item.count} 次</td></tr>`;
+                        });
+                        return html || '<tr><td colspan="2" class="text-center text-white-50">尚無資料</td></tr>';
                     }
+
+                    document.getElementById('lb-itri').innerHTML = generateHTML(listItri);
+                    document.getElementById('lb-usi').innerHTML = generateHTML(listUsi);
+                    document.getElementById('lb-cash').innerHTML = generateHTML(listCash);
                 }
             });
         }
 
-        // UI 輔助函式：顯示/隱藏準確率徽章
-        function showAcc(idPrefix, acc, hit) {
-            const badge = document.getElementById(`acc-${idPrefix}`);
-            const textRow = document.getElementById(`actual-${idPrefix}-text`);
-            badge.style.display = 'block';
-            badge.innerText = `準確率 ${acc}%`;
-            badge.style.backgroundColor = acc >= 90 ? 'rgba(16, 185, 129, 0.9)' : (acc >= 70 ? 'rgba(245, 158, 11, 0.9)' : 'rgba(239, 68, 68, 0.9)'); 
-            textRow.style.display = 'block';
-            textRow.querySelector('span').innerText = hit;
-        }
-
-        function hideAcc(idPrefix) {
-            document.getElementById(`acc-${idPrefix}`).style.display = 'none';
-            document.getElementById(`actual-${idPrefix}-text`).style.display = 'none';
-        }
-
         // 啟動系統！
         updateDashboard();
-        setInterval(updateDashboard, 60000); // 每 1 分鐘自動更新
+        loadLeaderboard(); // 確保呼叫排行榜功能
+        setInterval(updateDashboard, 60000); 
     </script>
 </body>
 </html>
