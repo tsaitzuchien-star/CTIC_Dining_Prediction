@@ -238,8 +238,9 @@
                     rows.forEach(row => {
                         const name = row['Name'] || row['姓名'];
                         const comp = row['公司'] || '';
-                        // 抓取用餐次數並轉為數字，如果空白就當作 0
-                        const count = parseInt(row['13天內用餐次數'] || row['DiningCount'] || 0); 
+                        
+                        // ✅ 這裡已經修正為「累積用餐次數」！
+                        const count = parseInt(row['累積用餐次數'] || row['DiningCount'] || 0); 
                         
                         if (name && count > 0) {
                             let obj = { name: name, count: count };
