@@ -181,10 +181,12 @@
     </div>
 
     <script>
+        // 🌟 這裡是你確認過的 3 把正確金鑰！
         const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
 
+        // 宣告一個全域變數字典，用來記住所有人的名字
         let masterDataLookup = {}; 
 
         // ==========================================
@@ -197,22 +199,26 @@
                 complete: function(res) {
                     let allDiners = [];
                     
+                    // 把主檔資料存進記憶體字典
                     res.data.forEach(row => {
                         const cid = (row['卡號'] || row['CardID'] || '').trim();
                         const name = (row['Name'] || row['姓名'] || '未知').trim();
                         const comp = (row['公司'] || '未知').trim();
                         const count = parseInt(row['累積用餐次數'] || 0);
                         
+                        // 建立以卡號為 Key 的字典，方便等一下找天降奇兵的名字
                         if (cid !== '') {
                             masterDataLookup[cid] = { name: name, comp: comp };
                         }
                         
+                        // 準備畫排行榜的資料
                         if (name !== '未知' && count > 0) {
                             allDiners.push({ name: name, comp: comp, count: count });
                         }
                     });
                     
-                    allDiners.sort((a, b) => b.count - a.count); 
+                    // 繪製 Top 10 排行榜
+                    allDiners.sort((a, b) => b.count - a.count); // 依數量由大排到小
                     let lbHtml = '';
                     let top10 = allDiners.slice(0, 10);
                     
@@ -230,6 +236,7 @@
                     });
                     document.getElementById('lb-all').innerHTML = lbHtml;
 
+                    // 主檔準備就緒後，開始讀取預測名單與對帳
                     loadPredictAndCompare();
                 }
             });
@@ -245,7 +252,7 @@
                 complete: function(predictResults) {
                     let total = 0, usi = 0, itri = 0, cash = 0;
                     let html = ''; 
-                    let predictedList = []; 
+                    let predictedList = []; // 存入記憶體準備等下比對
                     
                     document.getElementById('last-update').innerText = '最後更新：' + new Date().toLocaleString();
 
@@ -276,12 +283,14 @@
                         }
                     });
                     
+                    // 更新上方 4 個 KPI 預測數字
                     document.getElementById('total-count').innerText = total; 
                     document.getElementById('usi-count').innerText = usi;
                     document.getElementById('itri-count').innerText = itri; 
                     document.getElementById('cash-count').innerText = cash;
                     document.getElementById('table-body').innerHTML = html;
 
+                    // 預測畫完後，呼叫對帳函數
                     fetchActualData(predictedList);
                 }
             });
@@ -298,29 +307,33 @@
                     let actualCards = [];
                     let actualDetails = {}; 
                     
+                    // 把實際來的卡號和時間記起來
                     actualResults.data.forEach(row => {
                         let cid = (row['CardID'] || '').trim();
                         let time = (row['Time'] || '').trim();
                         if (cid !== '') {
                             actualCards.push(cid);
-                            actualDetails[cid] = time; 
+                            actualDetails[cid] = time; // 紀錄此卡號是幾點刷卡的
                         }
                     });
 
-                    if (actualCards.length === 0) return; 
+                    // 防呆：如果下午還沒上傳資料，就不跑下面的對帳
+                    if (actualCards.length === 0) {
+                        return; 
+                    }
 
-                    let hitTotal = 0, hitUsi = 0, hitItri = 0;
+                    let hitTotal = 0, hitUsi = 0, hitItri = 0; // 🚨 不需要 hitCash
                     let noShowHtml = ''; 
                     let surpriseHtml = '';
                     let noShowCount = 0; 
                     let surpriseCount = 0;
 
-                    // 🚨 修正核心邏輯：抓放鳥 (排除現金客)
+                    // 邏輯 A：抓放鳥 (排除現金客)
                     predictedList.forEach(p => {
                         // 判斷是否為現金客 (不是環電也不是工研院)
                         let isCash = !p.comp.includes('環電') && !p.comp.includes('工研院');
                         
-                        // 如果是現金客，直接跳過對帳，不列入放鳥名單
+                        // 如果是現金客，直接跳過對帳，不列入放鳥名單！
                         if (isCash) return; 
 
                         if (actualCards.includes(p.cardid)) {
@@ -344,11 +357,13 @@
 
                     // 邏輯 B：抓天降奇兵 (有實際刷卡，但不在預測名單內)
                     actualCards.forEach(cid => {
+                        // 檢查這張卡號有沒有在早上預測名單裡
                         let isPredicted = predictedList.some(p => p.cardid === cid);
                         
                         if (!isPredicted) {
                             surpriseCount++;
-                            let person = masterDataLookup[cid] || { name: '未建檔新客 / 訪客', comp: '現金給付' };
+                            // 🚨 正確的幽靈人口標示，避免與真實現金客混淆！
+                            let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                             let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             
                             surpriseHtml += `
@@ -361,7 +376,7 @@
                         }
                     });
 
-                    // 🚨 算準確率 (分母排除現金預測人數)
+                    // 🚨 算準確率 (總準確率的分母，排除現金預測人數)
                     let totalPredWithCard = predictedList.filter(p => p.comp.includes('環電') || p.comp.includes('工研院')).length;
                     const calcAcc = (hit, pred) => pred > 0 ? Math.round((hit / pred) * 100) : 0;
                     
@@ -369,6 +384,7 @@
                     showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
                     showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); 
 
+                    // 判斷是否要顯示表格
                     if (noShowCount > 0) { 
                         document.getElementById('no-show-container').style.display = 'block'; 
                         document.getElementById('noshow-body').innerHTML = noShowHtml; 
@@ -389,6 +405,7 @@
             b.style.display = 'block'; 
             b.innerText = `準確率 ${acc}%`; 
             
+            // 90分以上綠色，70分以上橘色，不及格紅色
             if (acc >= 90) { b.style.backgroundColor = 'rgba(16, 185, 129, 0.9)'; }
             else if (acc >= 70) { b.style.backgroundColor = 'rgba(245, 158, 11, 0.9)'; }
             else { b.style.backgroundColor = 'rgba(239, 68, 68, 0.9)'; }
