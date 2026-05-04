@@ -310,17 +310,21 @@
                         let isPredicted = predictedList.some(p => p.cardid === cid);
                         
                         if (!isPredicted) {
-                            surpriseCount++;
                             let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
-                            let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             
-                            surpriseHtml += `
-                                <tr class="border-bottom border-success">
-                                    <td class="text-white-50">${actualDetails[cid]}</td>
-                                    <td><span class="badge ${badgeClass}">${person.comp}</span></td>
-                                    <td class="fw-bold text-success">${person.name}</td>
-                                </tr>
-                            `;
+                            // 🌟 核心修改區：只讓隸屬「環電」或「工研院」的人進入名單，其餘一律忽略
+                            if (person.comp.includes('環電') || person.comp.includes('工研院')) {
+                                surpriseCount++;
+                                let badgeClass = person.comp.includes('環電') ? 'badge-usi' : 'badge-itri';
+                                
+                                surpriseHtml += `
+                                    <tr class="border-bottom border-success">
+                                        <td class="text-white-50">${actualDetails[cid]}</td>
+                                        <td><span class="badge ${badgeClass}">${person.comp}</span></td>
+                                        <td class="fw-bold text-success">${person.name}</td>
+                                    </tr>
+                                `;
+                            }
                         }
                     });
 
