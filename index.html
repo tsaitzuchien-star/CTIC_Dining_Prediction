@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中創園區 - 用餐預測戰情室 V5.1 (終極對帳版)</title>
+    <title>中創園區 - 用餐預測戰情室 V5.1 (老闆滿意版)</title>
     <!-- 引入 Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 PapaParse -->
@@ -109,6 +109,7 @@
                 <div class="table-container border border-danger" id="no-show-container" style="display: none;">
                     <h5 class="text-danger d-flex align-items-center mb-3">
                         ⚠️ 預測會來卻沒來 (放鳥名單) 
+                        <!-- 👇 放鳥人數徽章 👇 -->
                         <span id="noshow-badge" class="badge bg-danger rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
@@ -129,6 +130,7 @@
                 <div class="table-container">
                     <h5 class="d-flex align-items-center mb-3">
                         🕒 今日預測進園名單 
+                        <!-- 👇 預測進園人數徽章 👇 -->
                         <span id="predict-badge" class="badge bg-secondary rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -152,6 +154,7 @@
                 <div class="table-container border border-success" id="surprise-container" style="display: none;">
                     <h5 class="text-success d-flex align-items-center mb-3">
                         🚨 沒預測到卻跑來了 (天降奇兵) 
+                        <!-- 👇 天降奇兵人數徽章 👇 -->
                         <span id="surprise-badge" class="badge bg-success rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
@@ -357,7 +360,7 @@
                             // 🚨 直接去主檔抓人
                             let person = masterDataLookup[cid];
                             
-                            // 🛑 終極過濾防線：如果在主檔找不到這個人，代表他是純訪客/未建檔卡號，直接退出迴圈，不予顯示！
+                            // 🛑 終極過濾防線：如果在主檔找不到這個人，直接退出迴圈，不予顯示！(保證消除未建檔幽靈)
                             if (!person) {
                                 return; 
                             }
