@@ -14,7 +14,6 @@
         .kpi-card:hover { transform: translateY(-5px); }
         .table-container { background-color: #1e293b; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px;}
         .table { color: #f8fafc; margin-bottom: 0; }
-        /* 為了讓表格內的字在白底/黑底都好看，這裡我們讓表格文字繼承 Bootstrap 預設的行為 */
         .badge-usi { background-color: #3b82f6; } 
         .badge-itri { background-color: #10b981; } 
         .badge-cash { background-color: #f59e0b; color: #1e293b; } 
@@ -113,7 +112,6 @@
                         <span id="noshow-badge" class="badge bg-danger rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                        <!-- 加上 table-dark 讓表格跟整體背景比較搭 -->
                         <table class="table table-hover table-sm">
                             <thead>
                                 <tr class="text-secondary border-bottom border-danger">
@@ -314,12 +312,11 @@
                         if (!isPredicted) {
                             let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                             
-                            // 顯示環電、工研院，也順便把沒建檔的抓出來提醒你
-                            if (person.comp.includes('環電') || person.comp.includes('工研院') || person.comp.includes('未建檔')) {
+                            // 🌟 核心修改：把 '未建檔' 拿掉，只允許 '環電' 和 '工研院' 進入天降奇兵名單
+                            if (person.comp.includes('環電') || person.comp.includes('工研院')) {
                                 surpriseCount++;
-                                let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'bg-danger');
+                                let badgeClass = person.comp.includes('環電') ? 'badge-usi' : 'badge-itri';
                                 
-                                // 🌟 已經將這邊的 text-white-50 改為 text-secondary，確保文字清楚可見！
                                 surpriseHtml += `
                                     <tr class="border-bottom border-success">
                                         <td class="text-secondary fw-bold">${actualDetails[cid]}</td>
