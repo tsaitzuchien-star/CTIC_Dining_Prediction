@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中創園區 - 用餐預測戰情室 V5.1 (老闆滿意版)</title>
+    <title>中創園區 - 用餐預測戰情室 V5.1.2 (終極防重疊版)</title>
     <!-- 引入 Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 PapaParse -->
@@ -12,7 +12,7 @@
         body { background-color: #0f172a; color: #f8fafc; font-family: "Microsoft JhengHei", sans-serif; }
         .kpi-card { border: none; border-radius: 15px; transition: transform 0.3s; position: relative; overflow: hidden; }
         .kpi-card:hover { transform: translateY(-5px); }
-        .table-container { background-color: #1e293b; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px;}
+        .table-container { background-color: #1e293b; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%;}
         .table { color: #f8fafc; margin-bottom: 0; }
         .badge-usi { background-color: #3b82f6; } 
         .badge-itri { background-color: #10b981; } 
@@ -103,13 +103,12 @@
 
         <!-- 畫面分左右兩欄 -->
         <div class="row">
-            <!-- ⬅️ 左半部：沒來的人 & 預測名單 -->
-            <div class="col-md-6">
+            <!-- ⬅️ 左半部：套用 flex-column 與 gap-4 強制推開 -->
+            <div class="col-md-6 d-flex flex-column gap-4">
                 <!-- ⚠️ 預測失敗 (放鳥) 名單區 -->
-                <div class="table-container border border-danger mb-4" id="no-show-container" style="display: none;">
+                <div class="table-container m-0" id="no-show-container" style="display: none; border: 1px solid #dc3545;">
                     <h5 class="text-danger d-flex align-items-center mb-3">
                         ⚠️ 預測會來卻沒來 (放鳥名單) 
-                        <!-- 👇 放鳥人數徽章 👇 -->
                         <span id="noshow-badge" class="badge bg-danger rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
@@ -127,10 +126,9 @@
                 </div>
 
                 <!-- 明細列表區 (早盤預測) -->
-                <div class="table-container mb-4">
+                <div class="table-container m-0">
                     <h5 class="d-flex align-items-center mb-3">
                         🕒 今日預測進園名單 
-                        <!-- 👇 預測進園人數徽章 👇 -->
                         <span id="predict-badge" class="badge bg-secondary rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -148,14 +146,12 @@
                 </div>
             </div>
 
-            <!-- ➡️ 右半部：天降奇兵 & 排行榜 -->
-            <div class="col-md-6">
+            <!-- ➡️ 右半部：套用 flex-column 與 gap-4 強制推開 -->
+            <div class="col-md-6 d-flex flex-column gap-4">
                 <!-- 🚨 沒預測卻來的人 (天降奇兵) -->
-                <!-- 這裡加上 mb-4 強制底部留空隙 -->
-                <div class="table-container border border-success mb-4" id="surprise-container" style="display: none;">
+                <div class="table-container m-0" id="surprise-container" style="display: none; border: 1px solid #198754;">
                     <h5 class="text-success d-flex align-items-center mb-3">
                         🚨 沒預測到卻跑來了 (天降奇兵) 
-                        <!-- 👇 天降奇兵人數徽章 👇 -->
                         <span id="surprise-badge" class="badge bg-success rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
@@ -173,8 +169,7 @@
                 </div>
 
                 <!-- 🏆 戰力排行榜區塊 (Top 10) -->
-                <!-- 這裡加上 mt-4 強制頂部推開 -->
-                <div class="table-container border-top border-warning border-3 mt-4">
+                <div class="table-container border-top border-warning border-3 m-0">
                     <h5 class="text-warning mb-3">🏆 園區鐵粉排行榜 (Top 10)</h5>
                     <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-sm table-hover text-center">
@@ -296,7 +291,6 @@
                     document.getElementById('cash-count').innerText = cash;
                     document.getElementById('table-body').innerHTML = html;
                     
-                    // 👉 更新「今日預測進園名單」總數標籤
                     document.getElementById('predict-badge').innerText = predictedList.length;
 
                     fetchActualData(predictedList);
@@ -332,7 +326,6 @@
                     let noShowCount = 0; 
                     let surpriseCount = 0;
 
-                    // 邏輯 A：抓放鳥 (排除現金客)
                     predictedList.forEach(p => {
                         let isCash = !p.comp.includes('環電') && !p.comp.includes('工研院');
                         if (isCash) return; 
@@ -354,15 +347,11 @@
                         }
                     });
 
-                    // 邏輯 B：抓天降奇兵 (有實際刷卡，但不在預測名單內)
                     actualCards.forEach(cid => {
                         let isPredicted = predictedList.some(p => p.cardid === cid);
                         
                         if (!isPredicted) {
-                            // 🚨 直接去主檔抓人
                             let person = masterDataLookup[cid];
-                            
-                            // 🛑 終極過濾防線：如果在主檔找不到這個人，直接退出迴圈，不予顯示！(保證消除未建檔幽靈)
                             if (!person) {
                                 return; 
                             }
@@ -380,7 +369,6 @@
                         }
                     });
 
-                    // 算準確率 (分母排除現金預測人數)
                     let totalPredWithCard = predictedList.filter(p => p.comp.includes('環電') || p.comp.includes('工研院')).length;
                     const calcAcc = (hit, pred) => pred > 0 ? Math.round((hit / pred) * 100) : 0;
                     
@@ -388,7 +376,6 @@
                     showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
                     showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); 
 
-                    // 👉 更新「放鳥名單」與「天降奇兵」總數標籤
                     document.getElementById('noshow-badge').innerText = noShowCount;
                     document.getElementById('surprise-badge').innerText = surpriseCount;
 
@@ -417,7 +404,6 @@
             document.getElementById(`actual-${id}-text`).querySelector('span').innerText = hit;
         }
         
-        // 啟動系統！
         initSystem();
         setInterval(initSystem, 60000); 
     </script>
