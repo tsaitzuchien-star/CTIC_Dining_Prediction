@@ -58,6 +58,28 @@
             </div>
         </div>
 
+        <!-- 🏆 老闆專屬：販售對帳大看板 -->
+        <div class="card border-0 mb-4 shadow-lg" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+            <div class="card-body p-4">
+                <div class="row align-items-center text-center">
+                    <div class="col-md-5">
+                        <h5 class="text-white-50 mb-2">📝 今日預測總量 <span class="fs-6">(預測刷卡+現金)</span></h5>
+                        <h1 class="display-3 fw-bold text-light mb-0" id="grand-predict">0</h1>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-inline-block rounded-circle bg-dark p-3 my-3 my-md-0 shadow border border-secondary">
+                            <h4 class="text-warning fw-bold mb-0">VS</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <h5 class="text-white-50 mb-2">🍱 今日實際販售 <span class="fs-6">(卡機實際刷卡+現金)</span></h5>
+                        <!-- 預設顯示 "--"，直到下午一點卡機資料匯入才會顯示數字 -->
+                        <h1 class="display-3 fw-bold text-warning mb-0" id="grand-actual">--</h1>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- KPI 數據區 -->
         <div class="row g-3 mb-4">
             <div class="col-md-3">
@@ -240,13 +262,17 @@
                         }
                     });
                     
+                    // 🌟 將早盤的預測總數寫入大看板
+                    document.getElementById('grand-predict').innerText = total;
+
                     document.getElementById('total-count').innerText = total; 
                     document.getElementById('usi-count').innerText = usi;
                     document.getElementById('itri-count').innerText = itri; 
                     document.getElementById('cash-count').innerText = cash;
                     document.getElementById('table-body').innerHTML = html;
 
-                    fetchActualData(predictedList);
+                    // 🌟 注意：我們把 cash (現金預測數) 傳給下一步的對帳函數
+                    fetchActualData(predictedList, cash);
                 }
             });
         }
@@ -254,7 +280,8 @@
         // ==========================================
         // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵
         // ==========================================
-        function fetchActualData(predictedList) {
+        // 🌟 接收來自上一步的 cash 數量
+        function fetchActualData(predictedList, cash) {
             Papa.parse(actualUrl, {
                 download: true,
                 header: true,
@@ -273,9 +300,15 @@
                         }
                     });
 
+                    // 🌟 如果還沒有卡機資料，實際販售數量先顯示 --
                     if (actualCards.length === 0) {
+                        document.getElementById('grand-actual').innerText = "--";
                         return; 
                     }
+
+                    // 🌟 計算並顯示【今日實際販售總數】 = 實際有效刷卡人數 + 現金預測人數
+                    let actualTotalSold = actualCards.length + cash;
+                    document.getElementById('grand-actual').innerText = actualTotalSold;
 
                     let hitTotal = 0, hitUsi = 0, hitItri = 0; 
                     let noShowHtml = ''; 
@@ -312,7 +345,7 @@
                         if (!isPredicted) {
                             let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                             
-                            // 🌟 核心修改：把 '未建檔' 拿掉，只允許 '環電' 和 '工研院' 進入天降奇兵名單
+                            // 只允許 '環電' 和 '工研院' 進入天降奇兵名單
                             if (person.comp.includes('環電') || person.comp.includes('工研院')) {
                                 surpriseCount++;
                                 let badgeClass = person.comp.includes('環電') ? 'badge-usi' : 'badge-itri';
