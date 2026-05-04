@@ -106,7 +106,7 @@
             <!-- ⬅️ 左半部：沒來的人 & 預測名單 -->
             <div class="col-md-6">
                 <!-- ⚠️ 預測失敗 (放鳥) 名單區 -->
-                <div class="table-container border border-danger" id="no-show-container" style="display: none;">
+                <div class="table-container border border-danger mb-4" id="no-show-container" style="display: none;">
                     <h5 class="text-danger d-flex align-items-center mb-3">
                         ⚠️ 預測會來卻沒來 (放鳥名單) 
                         <!-- 👇 放鳥人數徽章 👇 -->
@@ -127,7 +127,7 @@
                 </div>
 
                 <!-- 明細列表區 (早盤預測) -->
-                <div class="table-container">
+                <div class="table-container mb-4">
                     <h5 class="d-flex align-items-center mb-3">
                         🕒 今日預測進園名單 
                         <!-- 👇 預測進園人數徽章 👇 -->
@@ -151,7 +151,8 @@
             <!-- ➡️ 右半部：天降奇兵 & 排行榜 -->
             <div class="col-md-6">
                 <!-- 🚨 沒預測卻來的人 (天降奇兵) -->
-                <div class="table-container border border-success" id="surprise-container" style="display: none;">
+                <!-- 這裡加上 mb-4 強制底部留空隙 -->
+                <div class="table-container border border-success mb-4" id="surprise-container" style="display: none;">
                     <h5 class="text-success d-flex align-items-center mb-3">
                         🚨 沒預測到卻跑來了 (天降奇兵) 
                         <!-- 👇 天降奇兵人數徽章 👇 -->
@@ -172,7 +173,8 @@
                 </div>
 
                 <!-- 🏆 戰力排行榜區塊 (Top 10) -->
-                <div class="table-container border-top border-warning border-3">
+                <!-- 這裡加上 mt-4 強制頂部推開 -->
+                <div class="table-container border-top border-warning border-3 mt-4">
                     <h5 class="text-warning mb-3">🏆 園區鐵粉排行榜 (Top 10)</h5>
                     <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-sm table-hover text-center">
