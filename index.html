@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中創園區 - 用餐預測戰情室 V5.1 (終極對帳版)</title>
+    <title>中創園區 - 用餐預測戰情室 V5 (終極對帳版)</title>
     <!-- 引入 Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 PapaParse -->
@@ -107,7 +107,7 @@
             <div class="col-md-6">
                 <!-- ⚠️ 預測失敗 (放鳥) 名單區 -->
                 <div class="table-container border border-danger" id="no-show-container" style="display: none;">
-                    <h5 class="text-danger d-flex align-items-center mb-3">
+                    <h5 class="text-danger mb-3">
                         ⚠️ 預測會來卻沒來 (放鳥名單) 
                         <span id="noshow-badge" class="badge bg-danger rounded-pill fs-6 ms-2">0</span>
                     </h5>
@@ -127,10 +127,7 @@
 
                 <!-- 明細列表區 (早盤預測) -->
                 <div class="table-container">
-                    <h5 class="d-flex align-items-center mb-3">
-                        🕒 今日預測進園名單 
-                        <span id="predict-badge" class="badge bg-secondary rounded-pill fs-6 ms-2">0</span>
-                    </h5>
+                    <h5 class="mb-3">🕒 今日預測進園名單</h5>
                     <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-hover table-sm">
                             <thead>
@@ -146,11 +143,11 @@
                 </div>
             </div>
 
-            <!-- ➡️ 右半部：天降奇兵 & 排行榜 -->
+            <!-- ➡️ 右半部：天降奇兵 -->
             <div class="col-md-6">
                 <!-- 🚨 沒預測卻來的人 (天降奇兵) -->
                 <div class="table-container border border-success" id="surprise-container" style="display: none;">
-                    <h5 class="text-success d-flex align-items-center mb-3">
+                    <h5 class="text-success mb-3">
                         🚨 沒預測到卻跑來了 (天降奇兵) 
                         <span id="surprise-badge" class="badge bg-success rounded-pill fs-6 ms-2">0</span>
                     </h5>
@@ -167,23 +164,6 @@
                         </table>
                     </div>
                 </div>
-
-                <!-- 🏆 戰力排行榜區塊 (Top 10) -->
-                <div class="table-container border-top border-warning border-3">
-                    <h5 class="text-warning mb-3">🏆 園區鐵粉排行榜 (Top 10)</h5>
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-sm table-hover text-center">
-                            <thead>
-                                <tr class="text-white-50 border-bottom">
-                                    <th>所屬公司</th>
-                                    <th>員工姓名</th>
-                                    <th>累積次數</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lb-all"></tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -197,55 +177,30 @@
         let masterDataLookup = {}; 
 
         // ==========================================
-        // 步驟 1：系統啟動，先去抓「主檔」建檔
+        // 步驟 1：系統啟動，抓「主檔」建檔
         // ==========================================
         function initSystem() {
             Papa.parse(masterUrl, {
                 download: true,
                 header: true,
                 complete: function(res) {
-                    let allDiners = [];
-                    
                     res.data.forEach(row => {
                         const cid = (row['卡號'] || row['CardID'] || '').trim();
                         const name = (row['Name'] || row['姓名'] || '未知').trim();
                         const comp = (row['公司'] || '未知').trim();
-                        const count = parseInt(row['累積用餐次數'] || 0);
                         
                         if (cid !== '') {
                             masterDataLookup[cid] = { name: name, comp: comp };
                         }
-                        
-                        if (name !== '未知' && count > 0) {
-                            allDiners.push({ name: name, comp: comp, count: count });
-                        }
                     });
                     
-                    allDiners.sort((a, b) => b.count - a.count); 
-                    let lbHtml = '';
-                    let top10 = allDiners.slice(0, 10);
-                    
-                    top10.forEach((item, idx) => {
-                        let badgeClass = item.comp.includes('環電') ? 'badge-usi' : (item.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                        let medal = idx < 3 ? '🏆' : `${idx + 1}.`;
-                        
-                        lbHtml += `
-                            <tr>
-                                <td><span class="badge ${badgeClass}">${item.comp}</span></td>
-                                <td class="fw-bold">${medal} ${item.name}</td>
-                                <td class="text-info fw-bold">${item.count}</td>
-                            </tr>
-                        `;
-                    });
-                    document.getElementById('lb-all').innerHTML = lbHtml;
-
                     loadPredictAndCompare();
                 }
             });
         }
 
         // ==========================================
-        // 步驟 2：讀取「預測大腦」，畫出左下角預測表
+        // 步驟 2：讀取「預測大腦」，畫出預測表
         // ==========================================
         function loadPredictAndCompare() {
             Papa.parse(predictUrl, {
@@ -290,9 +245,6 @@
                     document.getElementById('itri-count').innerText = itri; 
                     document.getElementById('cash-count').innerText = cash;
                     document.getElementById('table-body').innerHTML = html;
-                    
-                    // 👉 更新「今日預測進園名單」總數標籤
-                    document.getElementById('predict-badge').innerText = predictedList.length;
 
                     fetchActualData(predictedList);
                 }
@@ -313,13 +265,17 @@
                     actualResults.data.forEach(row => {
                         let cid = (row['CardID'] || '').trim();
                         let time = (row['Time'] || '').trim();
-                        if (cid !== '') {
+                        
+                        // 防重疊與過濾幽靈
+                        if (cid && cid.length > 3 && !actualCards.includes(cid)) {
                             actualCards.push(cid);
                             actualDetails[cid] = time; 
                         }
                     });
 
-                    if (actualCards.length === 0) return; 
+                    if (actualCards.length === 0) {
+                        return; 
+                    }
 
                     let hitTotal = 0, hitUsi = 0, hitItri = 0; 
                     let noShowHtml = ''; 
@@ -349,20 +305,13 @@
                         }
                     });
 
-                    // 邏輯 B：抓天降奇兵 (有實際刷卡，但不在預測名單內)
+                    // 邏輯 B：抓天降奇兵
                     actualCards.forEach(cid => {
                         let isPredicted = predictedList.some(p => p.cardid === cid);
                         
                         if (!isPredicted) {
-                            // 🚨 直接去主檔抓人
-                            let person = masterDataLookup[cid];
-                            
-                            // 🛑 終極過濾防線：如果在主檔找不到這個人，代表他是純訪客/未建檔卡號，直接退出迴圈，不予顯示！
-                            if (!person) {
-                                return; 
-                            }
-                            
                             surpriseCount++;
+                            let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                             let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             
                             surpriseHtml += `
@@ -375,7 +324,6 @@
                         }
                     });
 
-                    // 算準確率 (分母排除現金預測人數)
                     let totalPredWithCard = predictedList.filter(p => p.comp.includes('環電') || p.comp.includes('工研院')).length;
                     const calcAcc = (hit, pred) => pred > 0 ? Math.round((hit / pred) * 100) : 0;
                     
@@ -383,22 +331,24 @@
                     showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
                     showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); 
 
-                    // 👉 更新「放鳥名單」與「天降奇兵」總數標籤
-                    document.getElementById('noshow-badge').innerText = noShowCount;
-                    document.getElementById('surprise-badge').innerText = surpriseCount;
-
+                    // 顯示人數徽章
                     if (noShowCount > 0) { 
                         document.getElementById('no-show-container').style.display = 'block'; 
                         document.getElementById('noshow-body').innerHTML = noShowHtml; 
+                        document.getElementById('noshow-badge').innerText = noShowCount; 
                     }
                     if (surpriseCount > 0) { 
                         document.getElementById('surprise-container').style.display = 'block'; 
                         document.getElementById('surprise-body').innerHTML = surpriseHtml; 
+                        document.getElementById('surprise-badge').innerText = surpriseCount; 
                     }
                 }
             });
         }
 
+        // ==========================================
+        // 輔助函數：顯示與隱藏準確率徽章
+        // ==========================================
         function showAcc(id, acc, hit) { 
             const b = document.getElementById(`acc-${id}`); 
             b.style.display = 'block'; 
@@ -412,7 +362,6 @@
             document.getElementById(`actual-${id}-text`).querySelector('span').innerText = hit;
         }
         
-        // 啟動系統！
         initSystem();
         setInterval(initSystem, 60000); 
     </script>
