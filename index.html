@@ -123,11 +123,10 @@
             </div>
         </div>
 
-        <!-- 畫面分左右兩欄 -->
+        <!-- 畫面改為單欄垂直排列 (各自一列) -->
         <div class="row">
-            <!-- ⬅️ 左半部：沒來的人 & 預測名單 -->
-            <div class="col-md-6">
-                <!-- ⚠️ 預測失敗 (失準) 名單區 -->
+            <!-- ⚠️ 預測失敗 (失準) 名單區 -->
+            <div class="col-12">
                 <div class="table-container border border-danger" id="no-show-container" style="display: none;">
                     <h5 class="text-danger mb-3">
                         ⚠️ 預測會來卻沒來 (失準名單) 
@@ -146,28 +145,10 @@
                         </table>
                     </div>
                 </div>
-
-                <!-- 明細列表區 (早盤預測) -->
-                <div class="table-container">
-                    <h5 class="mb-3">🕒 今日預測用餐名單</h5>
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                                <tr class="text-secondary border-bottom">
-                                    <th>所屬公司</th>
-                                    <th>員工姓名</th>
-                                    <th>卡號(CardID)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
 
-            <!-- ➡️ 右半部：潛在客戶 -->
-            <div class="col-md-6">
-                <!-- 🚨 沒預測卻來的人 (潛在客戶) -->
+            <!-- 🚨 沒預測卻來的人 (潛在客戶) -->
+            <div class="col-12">
                 <div class="table-container border border-success" id="surprise-container" style="display: none;">
                     <h5 class="text-success mb-3">
                         🚨 沒預測到卻跑來了 (潛在客戶) 
@@ -183,6 +164,25 @@
                                 </tr>
                             </thead>
                             <tbody id="surprise-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 明細列表區 (早盤預測) -->
+            <div class="col-12">
+                <div class="table-container">
+                    <h5 class="mb-3">🕒 今日預測用餐名單</h5>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr class="text-secondary border-bottom">
+                                    <th>所屬公司</th>
+                                    <th>員工姓名</th>
+                                    <th>卡號(CardID)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body"></tbody>
                         </table>
                     </div>
                 </div>
