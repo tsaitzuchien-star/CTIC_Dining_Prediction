@@ -226,9 +226,9 @@
                 
                 // WMO 天氣代碼 50 以上通常為降水（包含毛毛雨、陣雨、雷雨等）
                 if (code >= 50) {
-                    weatherMultiplier = 1.03;
+                    weatherMultiplier = 1.05;
                     document.getElementById('weather-status').className = 'badge bg-info mt-2';
-                    document.getElementById('weather-status').innerText = '🌧️ 目前天氣：下雨 (預測量 x 1.03)';
+                    document.getElementById('weather-status').innerText = '🌧️ 目前天氣：下雨 (預測量 x 1.05)';
                 } else {
                     weatherMultiplier = 1.0;
                     document.getElementById('weather-status').className = 'badge bg-secondary mt-2';
