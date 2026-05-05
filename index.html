@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中創園區 - 用餐預測戰情室 V5 (終極對帳版)</title>
+    <title>中創園區 - 用餐預測戰情室</title>
     <!-- 引入 Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 PapaParse -->
@@ -32,6 +32,29 @@
             display: none; 
             z-index: 10;
         }
+        
+        /* 膠囊天氣標籤 */
+        .weather-pill {
+            display: inline-block;
+            background-color: #38bdf8; /* 天藍色 */
+            color: #0f172a;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+        
+        /* VS 對決圓圈 */
+        .vs-circle {
+            width: 65px; 
+            height: 65px; 
+            background-color: #1e293b;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -59,25 +82,39 @@
         </div>
 
         <!-- 🏆 老闆專屬：販售對帳大看板 -->
-        <div class="card border-0 mb-4 shadow-lg" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+        <div class="card border-0 mb-4 shadow-lg" style="background-color: #334155;">
             <div class="card-body p-4">
                 <div class="row align-items-center text-center">
+                    <!-- 左側：預測總量 -->
                     <div class="col-md-5">
-                        <h5 class="text-white-50 mb-2">📝 今日預測總量 <span class="fs-6">(預測刷卡+現金)</span><br>
-                            <span id="weather-status" class="badge bg-secondary mt-2">讀取天氣中...</span>
-                        </h5>
-                        <h1 class="display-3 fw-bold text-light mb-0" id="grand-predict">0</h1>
-                        <div class="text-white-50 mt-1" id="original-predict" style="display:none; font-size:0.9rem;">原始預測人數: 0</div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="d-inline-block rounded-circle bg-dark p-3 my-3 my-md-0 shadow border border-secondary">
-                            <h4 class="text-warning fw-bold mb-0">VS</h4>
+                        <h5 class="text-white-50 mb-3">📝 今日預測總量 <span class="fs-6">(預測刷卡+現金)</span></h5>
+                        
+                        <!-- 👇 天氣預測膠囊 (下雨時顯示) 👇 -->
+                        <div id="weather-badge-container" style="display: none;">
+                            <div class="weather-pill shadow-sm" id="weather-badge">
+                                🌧️ 目前天氣：下雨 (預測量 x 1.1)
+                            </div>
+                        </div>
+
+                        <h1 class="display-2 fw-bold text-light mb-1" id="grand-predict">0</h1>
+                        
+                        <!-- 原始預測人數輔助說明 (下雨加成時才會顯示) -->
+                        <div class="text-white-50" id="original-predict-text" style="display: none; font-size: 0.95rem;">
+                            原始預測人數: <span id="grand-base-predict">0</span>
                         </div>
                     </div>
+                    
+                    <!-- 中央：VS 圓圈 -->
+                    <div class="col-md-2 d-flex justify-content-center my-4 my-md-0">
+                        <div class="rounded-circle shadow border border-secondary vs-circle">
+                            <h4 class="text-warning fw-bold mb-0" style="font-size: 1.5rem;">VS</h4>
+                        </div>
+                    </div>
+                    
+                    <!-- 右側：實際販售 -->
                     <div class="col-md-5">
-                        <h5 class="text-white-50 mb-2">🍱 今日實際販售 <span class="fs-6">(卡機實際刷卡+現金)</span></h5>
-                        <!-- 預設顯示 "--"，直到下午一點卡機資料匯入才會顯示數字 -->
-                        <h1 class="display-3 fw-bold text-warning mb-0" id="grand-actual">--</h1>
+                        <h5 class="text-white-50 mb-3">🍱 今日實際販售 <span class="fs-6">(卡機實際刷卡+現金)</span></h5>
+                        <h1 class="display-2 fw-bold text-warning mb-0 mt-md-5" id="grand-actual">--</h1>
                     </div>
                 </div>
             </div>
@@ -89,6 +126,7 @@
                 <div class="card kpi-card bg-primary shadow-sm">
                     <div class="accuracy-badge" id="acc-total">準確率 0%</div>
                     <div class="card-body text-center pb-4 pt-3">
+                        <!-- 👇 回歸原本的樣式與文字 👇 -->
                         <h6 class="text-white-50 mt-3">原始總預測人數</h6>
                         <h1 class="display-4 fw-bold mb-0" id="total-count">0</h1>
                         <div class="text-info mt-2" id="actual-total-text" style="display:none; font-size:0.9rem;">刷卡命中: <span>0</span></div>
@@ -126,9 +164,8 @@
             </div>
         </div>
 
-        <!-- 畫面改為單欄垂直排列 (各自一列) -->
+        <!-- 單欄垂直排列明細區 -->
         <div class="row">
-            <!-- 🌟 順序 1：明細列表區 (早盤預測) -->
             <div class="col-12">
                 <div class="table-container">
                     <h5 class="mb-3">🕒 今日預測用餐名單</h5>
@@ -147,7 +184,6 @@
                 </div>
             </div>
 
-            <!-- 🌟 順序 2：⚠️ 預測失敗 (失準) 名單區 -->
             <div class="col-12">
                 <div class="table-container border border-danger" id="no-show-container" style="display: none;">
                     <h5 class="text-danger mb-3">
@@ -169,7 +205,6 @@
                 </div>
             </div>
 
-            <!-- 🌟 順序 3：🚨 沒預測卻來的人 (潛在客戶) -->
             <div class="col-12">
                 <div class="table-container border border-success" id="surprise-container" style="display: none;">
                     <h5 class="text-success mb-3">
@@ -194,71 +229,86 @@
     </div>
 
     <script>
-        // 🌟 金鑰設定
+        // 🌟 金鑰設定[cite: 4]
         const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
 
         let masterDataLookup = {}; 
-        let weatherMultiplier = 1.0; // 預設倍率
 
         // ==========================================
-        // 🌟 輔助函數：卡號自動補 0 修正機制
+        // 🌧️ 大看板專屬：抓天氣計算加成
         // ==========================================
-        function formatCardId(id) {
-            let cid = String(id || '').trim();
-            // 若卡號為純數字，且長度小於 10 碼（例如因為 Excel 轉檔把開頭 0 吃掉變 9 碼），則自動在前面補 0 至 10 碼
-            if (cid.length > 0 && cid.length < 10 && /^\d+$/.test(cid)) {
-                return cid.padStart(10, '0');
+        async function applyWeatherFactor(baseTotal) {
+            const grandPredictEl = document.getElementById('grand-predict');
+            const weatherBadge = document.getElementById('weather-badge');
+            const weatherContainer = document.getElementById('weather-badge-container');
+            const originalText = document.getElementById('original-predict-text');
+            const grandBase = document.getElementById('grand-base-predict');
+            
+            // 確保下方藍色 KPI 卡片只顯示最原始的總數，不加天氣加成
+            document.getElementById('total-count').innerText = baseTotal;
+
+            try {
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.9&longitude=120.68&current=weather_code,precipitation&timezone=Asia%2FTaipei');
+                const data = await res.json();
+                
+                const precip = data.current.precipitation;
+                const weatherCode = data.current.weather_code;
+                const isRaining = precip > 0 || weatherCode >= 51;
+                
+                if (isRaining) {
+                    let adjustedTotal = Math.ceil(baseTotal * 1.1);
+                    grandPredictEl.innerText = adjustedTotal;
+                    
+                    // 顯示藍色天氣膠囊與原始數字小字
+                    weatherContainer.style.display = 'block';
+                    weatherBadge.style.backgroundColor = '#38bdf8';
+                    weatherBadge.style.color = '#0f172a';
+                    weatherBadge.innerHTML = `🌧️ 目前天氣：下雨 (預測量 x 1.1)`;
+                    
+                    originalText.style.display = 'block';
+                    grandBase.innerText = baseTotal;
+                } else {
+                    grandPredictEl.innerText = baseTotal;
+                    
+                    // 沒下雨隱藏膠囊，或可改為顯示晴天
+                    weatherContainer.style.display = 'none';
+                    originalText.style.display = 'none';
+                }
+            } catch (e) {
+                console.error('氣象資料讀取失敗', e);
+                grandPredictEl.innerText = baseTotal;
+                weatherContainer.style.display = 'none';
+                originalText.style.display = 'none';
             }
-            return cid;
         }
 
         // ==========================================
-        // 步驟 1：系統啟動，抓「主檔」與「天氣」建檔
+        // 步驟 1：系統啟動，抓「主檔」建檔
         // ==========================================
-        async function initSystem() {
-            // 1a. 非同步獲取南投中創園區的即時天氣 (緯度: 23.95, 經度: 120.68)
-            try {
-                const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.95&longitude=120.68&current=weather_code&timezone=Asia%2FTaipei');
-                const weatherData = await weatherRes.json();
-                const code = weatherData.current.weather_code;
-                
-                // WMO 天氣代碼 50 以上通常為降水（包含毛毛雨、陣雨、雷雨等）
-                if (code >= 50) {
-                    weatherMultiplier = 1.03;
-                    document.getElementById('weather-status').className = 'badge bg-info mt-2';
-                    document.getElementById('weather-status').innerText = '🌧️ 目前天氣：下雨 (預測量 x 1.03)';
-                } else {
-                    weatherMultiplier = 1.0;
-                    document.getElementById('weather-status').className = 'badge bg-secondary mt-2';
-                    document.getElementById('weather-status').innerText = '🌤️ 目前天氣：無雨 (預測量維持)';
-                }
-            } catch (e) {
-                console.error('天氣讀取失敗', e);
-                document.getElementById('weather-status').className = 'badge bg-warning text-dark mt-2';
-                document.getElementById('weather-status').innerText = '⚠️ 天氣系統連線異常 (維持原預測)';
-                weatherMultiplier = 1.0;
-            }
-
-            // 1b. 讀取主檔資料
-            Papa.parse(masterUrl, {
+        function initSystem() {
+            const nocache = '&t=' + new Date().getTime();
+            
+            Papa.parse(masterUrl + nocache, {
                 download: true,
                 header: true,
                 complete: function(res) {
                     res.data.forEach(row => {
-                        let cid = (row['卡號'] || row['CardID'] || '').trim();
-                        cid = formatCardId(cid); // 自動修復補 0
-                        
-                        const name = (row['Name'] || row['姓名'] || '未知').trim();
+                        const cid = (row['卡號'] || row['CardID'] || '').trim().replace(/^0+/, '');
+                        let name = (row['Name'] || row['姓名'] || '未知').trim();
                         const comp = (row['公司'] || '未知').trim();
+                        
+                        if (name.includes('_')) {
+                            name = name.split('_').pop();
+                        }
                         
                         if (cid !== '') {
                             masterDataLookup[cid] = { name: name, comp: comp };
                         }
                     });
                     
-                    loadPredictAndCompare();
+                    loadPredictAndCompare(nocache);
                 }
             });
         }
@@ -266,8 +316,8 @@
         // ==========================================
         // 步驟 2：讀取「預測大腦」，畫出預測表
         // ==========================================
-        function loadPredictAndCompare() {
-            Papa.parse(predictUrl, {
+        function loadPredictAndCompare(nocache) {
+            Papa.parse(predictUrl + nocache, {
                 download: true,
                 header: true,
                 complete: function(predictResults) {
@@ -282,11 +332,20 @@
                         
                         if (isRegular === '是') {
                             const comp = row['公司'] || '未知';
-                            const name = row['Name'] || row['姓名'] || '未辨識';
-                            let cardid = (row['卡號'] || row['CardID'] || '').trim(); 
-                            cardid = formatCardId(cardid); // 自動修復補 0
+                            let name = (row['Name'] || row['姓名'] || '未辨識').trim();
                             
-                            predictedList.push({ cardid: cardid, name: name.trim(), comp: comp });
+                            if (name.includes('_')) {
+                                name = name.split('_').pop();
+                            }
+                            
+                            const cardid_raw = row['卡號'] || row['CardID'] || ''; 
+                            const cidClean = cardid_raw.trim().replace(/^0+/, '');
+                            
+                            if (masterDataLookup[cidClean]) {
+                                name = masterDataLookup[cidClean].name;
+                            }
+                            
+                            predictedList.push({ cardid: cidClean, name: name.trim(), comp: comp });
                             
                             total++;
                             if (comp.includes('環電')) { usi++; } 
@@ -299,33 +358,21 @@
                                 <tr class="border-bottom border-secondary">
                                     <td><span class="badge ${badgeClass}">${comp}</span></td>
                                     <td class="fw-bold">${name}</td>
-                                    <td class="text-secondary" style="font-size:0.85rem;">${cardid}</td>
+                                    <td class="text-secondary" style="font-size:0.85rem;">${cidClean}</td>
                                 </tr>
                             `;
                         }
                     });
                     
-                    // 🌟 乘上天氣倍率，並做無條件進位以確保供餐充足
-                    let finalGrandPredict = Math.ceil(total * weatherMultiplier);
-                    document.getElementById('grand-predict').innerText = finalGrandPredict;
-                    
-                    // 顯示原始資料供參考對帳
-                    if (weatherMultiplier > 1.0) {
-                        document.getElementById('original-predict').style.display = 'block';
-                        document.getElementById('original-predict').innerText = `原始預測人數: ${total}`;
-                    } else {
-                        document.getElementById('original-predict').style.display = 'none';
-                    }
-
-                    // 原始各項 KPI 依然維持原始清單計數
-                    document.getElementById('total-count').innerText = total; 
+                    document.getElementById('grand-predict').innerText = total;
                     document.getElementById('usi-count').innerText = usi;
                     document.getElementById('itri-count').innerText = itri; 
                     document.getElementById('cash-count').innerText = cash;
                     document.getElementById('table-body').innerHTML = html;
 
-                    // 🌟 傳遞給對帳函數
-                    fetchActualData(predictedList, cash);
+                    // 呼叫天氣運算 (負責更新看板與左下第一張卡片)
+                    applyWeatherFactor(total);
+                    fetchActualData(predictedList, cash, nocache);
                 }
             });
         }
@@ -333,8 +380,8 @@
         // ==========================================
         // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵
         // ==========================================
-        function fetchActualData(predictedList, cash) {
-            Papa.parse(actualUrl, {
+        function fetchActualData(predictedList, cash, nocache) {
+            Papa.parse(actualUrl + nocache, {
                 download: true,
                 header: true,
                 complete: function(actualResults) {
@@ -342,12 +389,10 @@
                     let actualDetails = {}; 
                     
                     actualResults.data.forEach(row => {
-                        let cid = (row['CardID'] || '').trim();
-                        cid = formatCardId(cid); // 自動修復補 0
-                        
+                        let cid = (row['CardID'] || '').trim().replace(/^0+/, '');
                         let time = (row['Time'] || '').trim();
                         
-                        if (cid && cid.length >= 3 && !actualCards.includes(cid)) {
+                        if (cid && cid.length > 3 && !actualCards.includes(cid)) {
                             actualCards.push(cid);
                             actualDetails[cid] = time; 
                         }
@@ -420,24 +465,16 @@
                         document.getElementById('no-show-container').style.display = 'block'; 
                         document.getElementById('noshow-body').innerHTML = noShowHtml; 
                         document.getElementById('noshow-badge').innerText = noShowCount; 
-                    } else {
-                        document.getElementById('no-show-container').style.display = 'none'; 
                     }
-
                     if (surpriseCount > 0) { 
                         document.getElementById('surprise-container').style.display = 'block'; 
                         document.getElementById('surprise-body').innerHTML = surpriseHtml; 
                         document.getElementById('surprise-badge').innerText = surpriseCount; 
-                    } else {
-                        document.getElementById('surprise-container').style.display = 'none'; 
                     }
                 }
             });
         }
 
-        // ==========================================
-        // 輔助函數：顯示與隱藏準確率徽章
-        // ==========================================
         function showAcc(id, acc, hit) { 
             const b = document.getElementById(`acc-${id}`); 
             b.style.display = 'block'; 
