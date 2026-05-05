@@ -63,8 +63,11 @@
             <div class="card-body p-4">
                 <div class="row align-items-center text-center">
                     <div class="col-md-5">
-                        <h5 class="text-white-50 mb-2">📝 今日預測總量 <span class="fs-6">(預測刷卡+現金)</span></h5>
+                        <h5 class="text-white-50 mb-2">📝 今日預測總量 <span class="fs-6">(預測刷卡+現金)</span><br>
+                            <span id="weather-status" class="badge bg-secondary mt-2">讀取天氣中...</span>
+                        </h5>
                         <h1 class="display-3 fw-bold text-light mb-0" id="grand-predict">0</h1>
+                        <div class="text-white-50 mt-1" id="original-predict" style="display:none; font-size:0.9rem;">原始預測人數: 0</div>
                     </div>
                     <div class="col-md-2">
                         <div class="d-inline-block rounded-circle bg-dark p-3 my-3 my-md-0 shadow border border-secondary">
@@ -86,7 +89,7 @@
                 <div class="card kpi-card bg-primary shadow-sm">
                     <div class="accuracy-badge" id="acc-total">準確率 0%</div>
                     <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-white-50 mt-3">本日總預測人數</h6>
+                        <h6 class="text-white-50 mt-3">原始總預測人數</h6>
                         <h1 class="display-4 fw-bold mb-0" id="total-count">0</h1>
                         <div class="text-info mt-2" id="actual-total-text" style="display:none; font-size:0.9rem;">刷卡命中: <span>0</span></div>
                     </div>
@@ -191,17 +194,42 @@
     </div>
 
     <script>
-        // 🌟 金鑰設定[cite: 1]
+        // 🌟 金鑰設定
         const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
 
         let masterDataLookup = {}; 
+        let weatherMultiplier = 1.0; // 預設倍率
 
         // ==========================================
-        // 步驟 1：系統啟動，抓「主檔」建檔
+        // 步驟 1：系統啟動，抓「主檔」與「天氣」建檔
         // ==========================================
-        function initSystem() {
+        async function initSystem() {
+            // 🌟 1a. 非同步獲取南投中創園區的即時天氣 (緯度: 23.95, 經度: 120.68)
+            try {
+                const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.95&longitude=120.68&current=weather_code&timezone=Asia%2FTaipei');
+                const weatherData = await weatherRes.json();
+                const code = weatherData.current.weather_code;
+                
+                // WMO 天氣代碼 50 以上通常為降水（包含毛毛雨、陣雨、雷雨等）
+                if (code >= 50) {
+                    weatherMultiplier = 1.1;
+                    document.getElementById('weather-status').className = 'badge bg-info mt-2';
+                    document.getElementById('weather-status').innerText = '🌧️ 目前天氣：下雨 (預測量 x 1.1)';
+                } else {
+                    weatherMultiplier = 1.0;
+                    document.getElementById('weather-status').className = 'badge bg-secondary mt-2';
+                    document.getElementById('weather-status').innerText = '🌤️ 目前天氣：無雨 (預測量維持)';
+                }
+            } catch (e) {
+                console.error('天氣讀取失敗', e);
+                document.getElementById('weather-status').className = 'badge bg-warning text-dark mt-2';
+                document.getElementById('weather-status').innerText = '⚠️ 天氣系統連線異常 (維持原預測)';
+                weatherMultiplier = 1.0;
+            }
+
+            // 1b. 讀取主檔資料
             Papa.parse(masterUrl, {
                 download: true,
                 header: true,
@@ -262,16 +290,26 @@
                         }
                     });
                     
-                    // 🌟 將早盤的預測總數寫入大看板
-                    document.getElementById('grand-predict').innerText = total;
+                    // 🌟 乘上天氣倍率，並做無條件進位以確保供餐充足
+                    let finalGrandPredict = Math.ceil(total * weatherMultiplier);
+                    document.getElementById('grand-predict').innerText = finalGrandPredict;
+                    
+                    // 顯示原始資料供參考對帳
+                    if (weatherMultiplier > 1.0) {
+                        document.getElementById('original-predict').style.display = 'block';
+                        document.getElementById('original-predict').innerText = `原始預測人數: ${total}`;
+                    } else {
+                        document.getElementById('original-predict').style.display = 'none';
+                    }
 
+                    // 原始各項 KPI 依然維持原始清單計數
                     document.getElementById('total-count').innerText = total; 
                     document.getElementById('usi-count').innerText = usi;
                     document.getElementById('itri-count').innerText = itri; 
                     document.getElementById('cash-count').innerText = cash;
                     document.getElementById('table-body').innerHTML = html;
 
-                    // 🌟 注意：我們把 cash (現金預測數) 傳給下一步的對帳函數
+                    // 🌟 傳遞給對帳函數
                     fetchActualData(predictedList, cash);
                 }
             });
@@ -280,7 +318,6 @@
         // ==========================================
         // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵
         // ==========================================
-        // 🌟 接收來自上一步的 cash 數量
         function fetchActualData(predictedList, cash) {
             Papa.parse(actualUrl, {
                 download: true,
@@ -293,20 +330,17 @@
                         let cid = (row['CardID'] || '').trim();
                         let time = (row['Time'] || '').trim();
                         
-                        // 防重疊與過濾幽靈
                         if (cid && cid.length > 3 && !actualCards.includes(cid)) {
                             actualCards.push(cid);
                             actualDetails[cid] = time; 
                         }
                     });
 
-                    // 🌟 如果還沒有卡機資料，實際販售數量先顯示 --
                     if (actualCards.length === 0) {
                         document.getElementById('grand-actual').innerText = "--";
                         return; 
                     }
 
-                    // 🌟 計算並顯示【今日實際販售總數】 = 實際有效刷卡人數 + 現金預測人數
                     let actualTotalSold = actualCards.length + cash;
                     document.getElementById('grand-actual').innerText = actualTotalSold;
 
@@ -316,7 +350,6 @@
                     let noShowCount = 0; 
                     let surpriseCount = 0;
 
-                    // 邏輯 A：抓放鳥 (排除現金客)
                     predictedList.forEach(p => {
                         let isCash = !p.comp.includes('環電') && !p.comp.includes('工研院');
                         if (isCash) return; 
@@ -338,14 +371,12 @@
                         }
                     });
 
-                    // 邏輯 B：抓天降奇兵
                     actualCards.forEach(cid => {
                         let isPredicted = predictedList.some(p => p.cardid === cid);
                         
                         if (!isPredicted) {
                             let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                             
-                            // 只允許 '環電' 和 '工研院' 進入天降奇兵名單
                             if (person.comp.includes('環電') || person.comp.includes('工研院')) {
                                 surpriseCount++;
                                 let badgeClass = person.comp.includes('環電') ? 'badge-usi' : 'badge-itri';
@@ -368,16 +399,20 @@
                     showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
                     showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); 
 
-                    // 顯示人數徽章
                     if (noShowCount > 0) { 
                         document.getElementById('no-show-container').style.display = 'block'; 
                         document.getElementById('noshow-body').innerHTML = noShowHtml; 
                         document.getElementById('noshow-badge').innerText = noShowCount; 
+                    } else {
+                        document.getElementById('no-show-container').style.display = 'none'; 
                     }
+
                     if (surpriseCount > 0) { 
                         document.getElementById('surprise-container').style.display = 'block'; 
                         document.getElementById('surprise-body').innerHTML = surpriseHtml; 
                         document.getElementById('surprise-badge').innerText = surpriseCount; 
+                    } else {
+                        document.getElementById('surprise-container').style.display = 'none'; 
                     }
                 }
             });
