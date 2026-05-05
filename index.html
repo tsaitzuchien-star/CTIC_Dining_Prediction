@@ -203,10 +203,22 @@
         let weatherMultiplier = 1.0; // 預設倍率
 
         // ==========================================
+        // 🌟 輔助函數：卡號自動補 0 修正機制
+        // ==========================================
+        function formatCardId(id) {
+            let cid = String(id || '').trim();
+            // 若卡號為純數字，且長度小於 10 碼（例如因為 Excel 轉檔把開頭 0 吃掉變 9 碼），則自動在前面補 0 至 10 碼
+            if (cid.length > 0 && cid.length < 10 && /^\d+$/.test(cid)) {
+                return cid.padStart(10, '0');
+            }
+            return cid;
+        }
+
+        // ==========================================
         // 步驟 1：系統啟動，抓「主檔」與「天氣」建檔
         // ==========================================
         async function initSystem() {
-            // 🌟 1a. 非同步獲取南投中創園區的即時天氣 (緯度: 23.95, 經度: 120.68)
+            // 1a. 非同步獲取南投中創園區的即時天氣 (緯度: 23.95, 經度: 120.68)
             try {
                 const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.95&longitude=120.68&current=weather_code&timezone=Asia%2FTaipei');
                 const weatherData = await weatherRes.json();
@@ -235,7 +247,9 @@
                 header: true,
                 complete: function(res) {
                     res.data.forEach(row => {
-                        const cid = (row['卡號'] || row['CardID'] || '').trim();
+                        let cid = (row['卡號'] || row['CardID'] || '').trim();
+                        cid = formatCardId(cid); // 自動修復補 0
+                        
                         const name = (row['Name'] || row['姓名'] || '未知').trim();
                         const comp = (row['公司'] || '未知').trim();
                         
@@ -269,9 +283,10 @@
                         if (isRegular === '是') {
                             const comp = row['公司'] || '未知';
                             const name = row['Name'] || row['姓名'] || '未辨識';
-                            const cardid = row['卡號'] || row['CardID'] || ''; 
+                            let cardid = (row['卡號'] || row['CardID'] || '').trim(); 
+                            cardid = formatCardId(cardid); // 自動修復補 0
                             
-                            predictedList.push({ cardid: cardid.trim(), name: name.trim(), comp: comp });
+                            predictedList.push({ cardid: cardid, name: name.trim(), comp: comp });
                             
                             total++;
                             if (comp.includes('環電')) { usi++; } 
@@ -328,9 +343,11 @@
                     
                     actualResults.data.forEach(row => {
                         let cid = (row['CardID'] || '').trim();
+                        cid = formatCardId(cid); // 自動修復補 0
+                        
                         let time = (row['Time'] || '').trim();
                         
-                        if (cid && cid.length > 3 && !actualCards.includes(cid)) {
+                        if (cid && cid.length >= 3 && !actualCards.includes(cid)) {
                             actualCards.push(cid);
                             actualDetails[cid] = time; 
                         }
