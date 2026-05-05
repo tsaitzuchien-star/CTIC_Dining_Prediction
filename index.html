@@ -258,14 +258,14 @@
                 const isRaining = precip > 0 || weatherCode >= 51;
                 
                 if (isRaining) {
-                    let adjustedTotal = Math.ceil(baseTotal * 1.1);
+                    let adjustedTotal = Math.ceil(baseTotal * 1.03);
                     grandPredictEl.innerText = adjustedTotal;
                     
                     // 顯示藍色天氣膠囊與原始數字小字
                     weatherContainer.style.display = 'block';
                     weatherBadge.style.backgroundColor = '#38bdf8';
                     weatherBadge.style.color = '#0f172a';
-                    weatherBadge.innerHTML = `🌧️ 目前天氣：下雨 (預測量 x 1.1)`;
+                    weatherBadge.innerHTML = `🌧️ 目前天氣：下雨 (預測量 x 1.03)`;
                     
                     originalText.style.display = 'block';
                     grandBase.innerText = baseTotal;
