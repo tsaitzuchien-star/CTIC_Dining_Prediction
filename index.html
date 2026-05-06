@@ -8,6 +8,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- 引入 Chart.js (新增折線圖套件) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         body { background-color: #0f172a; color: #f8fafc; font-family: "Microsoft JhengHei", sans-serif; }
         .kpi-card { border: none; border-radius: 15px; transition: transform 0.3s; position: relative; overflow: hidden; }
@@ -19,7 +22,6 @@
         .badge-cash { background-color: #f59e0b; color: #1e293b; } 
         .refresh-tag { font-size: 0.8rem; color: #94a3b8; }
         
-        /* 準確率標籤樣式 */
         .accuracy-badge {
             position: absolute; 
             top: 0; 
@@ -33,10 +35,9 @@
             z-index: 10;
         }
         
-        /* 膠囊天氣標籤 */
         .weather-pill {
             display: inline-block;
-            background-color: #38bdf8; /* 天藍色 */
+            background-color: #38bdf8; 
             color: #0f172a;
             font-weight: bold;
             padding: 6px 16px;
@@ -45,7 +46,6 @@
             margin-bottom: 15px;
         }
         
-        /* VS 對決圓圈 */
         .vs-circle {
             width: 65px; 
             height: 65px; 
@@ -85,33 +85,25 @@
         <div class="card border-0 mb-4 shadow-lg" style="background-color: #334155;">
             <div class="card-body p-4">
                 <div class="row align-items-center text-center">
-                    <!-- 左側：預測總量 -->
                     <div class="col-md-5">
                         <h5 class="text-white-50 mb-3">📝 今日預測總量</h5>
-                        
-                        <!-- 👇 天氣預測膠囊 (下雨時顯示) 👇 -->
                         <div id="weather-badge-container" style="display: none;">
                             <div class="weather-pill shadow-sm" id="weather-badge">
                                 🌧️ 目前天氣：下雨 (預測量 x 1.1)
                             </div>
                         </div>
-
                         <h1 class="display-2 fw-bold text-light mb-1" id="grand-predict">0</h1>
-                        
-                        <!-- 原始預測人數輔助說明 (下雨加成時才會顯示) -->
                         <div class="text-white-50" id="original-predict-text" style="display: none; font-size: 0.95rem;">
                             原始預測人數: <span id="grand-base-predict">0</span>
                         </div>
                     </div>
                     
-                    <!-- 中央：VS 圓圈 -->
                     <div class="col-md-2 d-flex justify-content-center my-4 my-md-0">
                         <div class="rounded-circle shadow border border-secondary vs-circle">
                             <h4 class="text-warning fw-bold mb-0" style="font-size: 1.5rem;">VS</h4>
                         </div>
                     </div>
                     
-                    <!-- 右側：實際販售 -->
                     <div class="col-md-5">
                         <h5 class="text-white-50 mb-3">🍱 今日實際販售</h5>
                         <h1 class="display-2 fw-bold text-warning mb-0" id="grand-actual">--</h1>
@@ -158,8 +150,23 @@
                     <div class="card-body text-center pb-4 pt-3">
                         <h6 class="text-dark fw-bold mt-3">現金給付</h6>
                         <h1 class="display-4 fw-bold text-dark mb-0" id="cash-count">0</h1>
-                        <!-- 新增現金給付的實際命中欄位 -->
                         <div class="text-dark fw-bold mt-2" id="actual-cash-text" style="display:none; font-size:0.9rem;">實際命中: <span>0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📈 新增：歷史趨勢折線圖區塊 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm" style="background-color: #1e293b; border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="text-white mb-0">📈 歷史預測與實際用餐趨勢比較</h5>
+                            <span class="badge bg-secondary">近5日數據 (Demo)</span>
+                        </div>
+                        <!-- Canvas 畫布，用來繪製折線圖 -->
+                        <canvas id="trendChart" height="70"></canvas>
                     </div>
                 </div>
             </div>
@@ -236,6 +243,84 @@
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
 
         let masterDataLookup = {}; 
+        let trendChartInstance = null; // 紀錄圖表實例以防重複繪製
+
+        // ==========================================
+        // 📈 繪製歷史趨勢折線圖 (Demo版)
+        // ==========================================
+        function renderTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            // 如果圖表已經存在，先銷毀避免重疊
+            if(trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    // X 軸日期 (此為假資料，後續可從 Google Sheets 抓取)
+                    labels: ['5/2', '5/3', '5/4', '5/5', '5/6'], 
+                    datasets: [
+                        {
+                            label: '系統預測',
+                            data: [120, 128, 131, 128, 125], // 5/6為您提供的125
+                            borderColor: '#3b82f6', // 藍色
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#3b82f6',
+                            tension: 0.4, // 讓線條微彎平滑
+                            fill: true    // 填滿下方顏色
+                        },
+                        {
+                            label: '人工預測',
+                            data: [130, 135, 140, 135, 145], // 5/6為您提供的145
+                            borderColor: '#a855f7', // 紫色
+                            borderWidth: 2,
+                            borderDash: [5, 5], // 設為虛線
+                            pointBackgroundColor: '#a855f7',
+                            tension: 0.4
+                        },
+                        {
+                            label: '實際用餐',
+                            data: [118, 125, 129, 120, 122], // 5/6為您提供的122
+                            borderColor: '#10b981', // 綠色
+                            borderWidth: 3, // 實績線條加粗
+                            pointBackgroundColor: '#10b981',
+                            pointRadius: 5, // 點放大
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { 
+                            labels: { color: '#f8fafc', font: { family: 'Microsoft JhengHei' } } 
+                        },
+                        tooltip: {
+                            titleFont: { family: 'Microsoft JhengHei', size: 14 },
+                            bodyFont: { family: 'Microsoft JhengHei', size: 13 }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            ticks: { color: '#94a3b8' }, 
+                            grid: { color: 'rgba(255,255,255,0.05)' } 
+                        },
+                        y: { 
+                            ticks: { color: '#94a3b8' }, 
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            suggestedMin: 100 // 設定Y軸預設最低值讓圖表更好看
+                        }
+                    }
+                }
+            });
+        }
 
         // ==========================================
         // 🌧️ 大看板專屬：抓天氣計算加成
@@ -247,7 +332,6 @@
             const originalText = document.getElementById('original-predict-text');
             const grandBase = document.getElementById('grand-base-predict');
             
-            // 確保下方藍色 KPI 卡片只顯示最原始的總數，不加天氣加成
             document.getElementById('total-count').innerText = baseTotal;
 
             try {
@@ -309,6 +393,9 @@
                     loadPredictAndCompare(nocache);
                 }
             });
+            
+            // 系統初始化時，同時繪製趨勢圖
+            renderTrendChart();
         }
 
         // ==========================================
@@ -403,7 +490,6 @@
                     let actualTotalSold = actualCards.length;
                     document.getElementById('grand-actual').innerText = actualTotalSold;
 
-                    // 新增 hitCash 變數
                     let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
                     let noShowHtml = ''; 
                     let surpriseHtml = '';
@@ -411,12 +497,11 @@
                     let surpriseCount = 0;
 
                     predictedList.forEach(p => {
-                        // 移除原本忽略現金給付的邏輯，現在全體都要計算命中率
                         if (actualCards.includes(p.cardid)) {
                             hitTotal++; 
                             if (p.comp.includes('環電')) { hitUsi++; } 
                             else if (p.comp.includes('工研院')) { hitItri++; } 
-                            else { hitCash++; } // 計算現金給付命中數
+                            else { hitCash++; } 
                         } else {
                             noShowCount++; 
                             let badgeClass = p.comp.includes('環電') ? 'badge-usi' : (p.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
@@ -436,7 +521,6 @@
                         if (!isPredicted) {
                             let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                             
-                            // 您可以依需求決定是否把現金給付的天降奇兵也顯示出來，這裡維持原本邏輯（只抓環電與工研院）
                             if (person.comp.includes('環電') || person.comp.includes('工研院') || !person.comp.includes('未知')) {
                                 surpriseCount++;
                                 let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
@@ -452,14 +536,13 @@
                         }
                     });
 
-                    // 總預測數現在是「所有人」的長度
                     let totalPredWithCard = predictedList.length;
                     const calcAcc = (hit, pred) => pred > 0 ? Math.round((hit / pred) * 100) : 0;
                     
                     showAcc('total', calcAcc(hitTotal, totalPredWithCard), hitTotal); 
                     showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
                     showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); 
-                    showAcc('cash', calcAcc(hitCash, predictedList.filter(p => !p.comp.includes('環電') && !p.comp.includes('工研院')).length), hitCash); // 顯示現金給付準確率
+                    showAcc('cash', calcAcc(hitCash, predictedList.filter(p => !p.comp.includes('環電') && !p.comp.includes('工研院')).length), hitCash); 
 
                     if (noShowCount > 0) { 
                         document.getElementById('no-show-container').style.display = 'block'; 
