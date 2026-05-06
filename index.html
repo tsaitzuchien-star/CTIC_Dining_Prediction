@@ -87,7 +87,7 @@
                 <div class="row align-items-center text-center">
                     <!-- 左側：預測總量 -->
                     <div class="col-md-5">
-                        <h5 class="text-white-50 mb-3">📝 今日預測總量 <span class="fs-6">(預測刷卡+現金)</span></h5>
+                        <h5 class="text-white-50 mb-3">📝 今日預測總量</h5>
                         
                         <!-- 👇 天氣預測膠囊 (下雨時顯示) 👇 -->
                         <div id="weather-badge-container" style="display: none;">
@@ -113,7 +113,7 @@
                     
                     <!-- 右側：實際販售 -->
                     <div class="col-md-5">
-                        <h5 class="text-white-50 mb-3">🍱 今日實際販售 <span class="fs-6">(卡機實際刷卡+現金)</span></h5>
+                        <h5 class="text-white-50 mb-3">🍱 今日實際販售</h5>
                         <h1 class="display-2 fw-bold text-warning mb-0 mt-md-5" id="grand-actual">--</h1>
                     </div>
                 </div>
@@ -126,7 +126,6 @@
                 <div class="card kpi-card bg-primary shadow-sm">
                     <div class="accuracy-badge" id="acc-total">準確率 0%</div>
                     <div class="card-body text-center pb-4 pt-3">
-                        <!-- 👇 回歸原本的樣式與文字 👇 -->
                         <h6 class="text-white-50 mt-3">原始總預測人數</h6>
                         <h1 class="display-4 fw-bold mb-0" id="total-count">0</h1>
                         <div class="text-info mt-2" id="actual-total-text" style="display:none; font-size:0.9rem;">刷卡命中: <span>0</span></div>
@@ -155,10 +154,10 @@
             </div>
             <div class="col-md-3">
                 <div class="card kpi-card shadow-sm" style="background-color: #d97706;">
-                    <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-dark fw-bold mt-3">現金給付 <span style="font-size:0.75rem;">(免刷卡)</span></h6>
+                    <div class="card-body text-center pb-4 pt-4">
+                        <!-- 只保留「現金給付」文字，移除了免刷卡等說明 -->
+                        <h6 class="text-dark fw-bold mt-2">現金給付</h6>
                         <h1 class="display-4 fw-bold text-dark mb-0" id="cash-count">0</h1>
-                        <div class="text-dark mt-2" style="font-size:0.9rem;">此區塊不計入對帳率</div>
                     </div>
                 </div>
             </div>
@@ -229,7 +228,7 @@
     </div>
 
     <script>
-        // 🌟 金鑰設定[cite: 4]
+        // 🌟 金鑰設定
         const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
@@ -321,6 +320,7 @@
                 download: true,
                 header: true,
                 complete: function(predictResults) {
+                    // 加入 cash 變數
                     let total = 0, usi = 0, itri = 0, cash = 0;
                     let html = ''; 
                     let predictedList = []; 
@@ -350,7 +350,7 @@
                             total++;
                             if (comp.includes('環電')) { usi++; } 
                             else if (comp.includes('工研院')) { itri++; } 
-                            else { cash++; }
+                            else { cash++; } // 非環電、非工研院者計入現金給付
                             
                             let badgeClass = comp.includes('環電') ? 'badge-usi' : (comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             
@@ -367,12 +367,12 @@
                     document.getElementById('grand-predict').innerText = total;
                     document.getElementById('usi-count').innerText = usi;
                     document.getElementById('itri-count').innerText = itri; 
-                    document.getElementById('cash-count').innerText = cash;
+                    document.getElementById('cash-count').innerText = cash; // 更新現金給付UI數據
                     document.getElementById('table-body').innerHTML = html;
 
                     // 呼叫天氣運算 (負責更新看板與左下第一張卡片)
                     applyWeatherFactor(total);
-                    fetchActualData(predictedList, cash, nocache);
+                    fetchActualData(predictedList, nocache);
                 }
             });
         }
@@ -380,7 +380,7 @@
         // ==========================================
         // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵
         // ==========================================
-        function fetchActualData(predictedList, cash, nocache) {
+        function fetchActualData(predictedList, nocache) {
             Papa.parse(actualUrl + nocache, {
                 download: true,
                 header: true,
@@ -403,7 +403,8 @@
                         return; 
                     }
 
-                    let actualTotalSold = actualCards.length + cash;
+                    // 💡 重點修改：實際總數現在「直接等於」卡機刷卡總數，不用再加上預測的現金人數
+                    let actualTotalSold = actualCards.length;
                     document.getElementById('grand-actual').innerText = actualTotalSold;
 
                     let hitTotal = 0, hitUsi = 0, hitItri = 0; 
@@ -414,7 +415,7 @@
 
                     predictedList.forEach(p => {
                         let isCash = !p.comp.includes('環電') && !p.comp.includes('工研院');
-                        if (isCash) return; 
+                        if (isCash) return; // 現金給付名單不計算對帳命中率
 
                         if (actualCards.includes(p.cardid)) {
                             hitTotal++; 
