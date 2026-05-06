@@ -241,7 +241,7 @@
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
         
-        // 👇 趨勢紀錄分頁 CSV 網址 👇
+        // 趨勢紀錄分頁 CSV 網址
         const trendUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1825976142&single=true&output=csv'; 
 
         let masterDataLookup = {}; 
@@ -261,9 +261,7 @@
                     let actualData = [];
 
                     results.data.forEach(row => {
-                        // 如果該行日期有值，才將資料塞進陣列裡
                         if (row['日期'] && row['日期'].trim() !== '') {
-                            // 將 YYYY-MM-DD 簡化為 M/D 讓圖表更美觀
                             let dateStr = row['日期'].trim();
                             if (dateStr.includes('-')) {
                                 let parts = dateStr.split('-');
@@ -284,7 +282,6 @@
                         }
                     });
 
-                    // 畫出圖表
                     renderTrendChart(dateLabels, sysPredictData, manualPredictData, actualData);
                 }
             });
@@ -300,11 +297,11 @@
             trendChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels, // 自動帶入 Google Sheets 的日期
+                    labels: labels, 
                     datasets: [
                         {
                             label: '系統預測',
-                            data: sysData, // 自動帶入 Google Sheets 的資料
+                            data: sysData, 
                             borderColor: '#3b82f6', 
                             backgroundColor: 'rgba(59, 130, 246, 0.1)',
                             borderWidth: 2,
@@ -355,7 +352,6 @@
                         y: { 
                             ticks: { color: '#94a3b8' }, 
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            // 讓折線圖Y軸有一定的彈性空間
                             suggestedMin: 110, 
                             suggestedMax: 155
                         }
@@ -436,7 +432,6 @@
                 }
             });
             
-            // 系統初始化時，自動去抓取趨勢紀錄並畫圖
             fetchAndRenderTrendChart(nocache);
         }
 
@@ -504,32 +499,32 @@
         }
 
         // ==========================================
-        // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵
+        // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵 (更新版)
         // ==========================================
         function fetchActualData(predictedList, nocache) {
             Papa.parse(actualUrl + nocache, {
                 download: true,
                 header: true,
                 complete: function(actualResults) {
-                    let actualCards = [];
-                    let actualDetails = {}; 
+                    let allActualSwipes = []; // 改為儲存所有刷卡物件，包含重複刷卡
                     
                     actualResults.data.forEach(row => {
                         let cid = (row['CardID'] || '').trim().replace(/^0+/, '');
                         let time = (row['Time'] || '').trim();
                         
-                        if (cid && cid.length > 3 && !actualCards.includes(cid)) {
-                            actualCards.push(cid);
-                            actualDetails[cid] = time; 
+                        // 移除原本的去重複判斷 (!actualCards.includes(cid))
+                        if (cid && cid.length > 3) {
+                            allActualSwipes.push({ cid: cid, time: time });
                         }
                     });
 
-                    if (actualCards.length === 0) {
+                    if (allActualSwipes.length === 0) {
                         document.getElementById('grand-actual').innerText = "--";
                         return; 
                     }
 
-                    let actualTotalSold = actualCards.length;
+                    // 實際總販售 = 真實卡機感應總次數 (解決119與120的落差)
+                    let actualTotalSold = allActualSwipes.length;
                     document.getElementById('grand-actual').innerText = actualTotalSold;
 
                     let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
@@ -538,13 +533,24 @@
                     let noShowCount = 0; 
                     let surpriseCount = 0;
 
+                    // 建立「配對消耗池」
+                    let swipePool = [...allActualSwipes];
+
+                    // 1. 先用預測名單去消耗池子裡的紀錄
                     predictedList.forEach(p => {
-                        if (actualCards.includes(p.cardid)) {
+                        let matchIndex = swipePool.findIndex(s => s.cid === p.cardid);
+                        
+                        if (matchIndex !== -1) {
+                            // 命中！
                             hitTotal++; 
                             if (p.comp.includes('環電')) { hitUsi++; } 
                             else if (p.comp.includes('工研院')) { hitItri++; } 
                             else { hitCash++; } 
+                            
+                            // 配對成功後，將該筆刷卡紀錄從池子中移除
+                            swipePool.splice(matchIndex, 1);
                         } else {
+                            // 預測會來，但池子裡找不到他的卡號 = 失準
                             noShowCount++; 
                             let badgeClass = p.comp.includes('環電') ? 'badge-usi' : (p.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             noShowHtml += `
@@ -557,27 +563,26 @@
                         }
                     });
 
-                    actualCards.forEach(cid => {
-                        let isPredicted = predictedList.some(p => p.cardid === cid);
+                    // 2. 池子裡剩下的紀錄，全都是潛在客戶或加點的！
+                    swipePool.forEach(swipe => {
+                        let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                         
-                        if (!isPredicted) {
-                            let person = masterDataLookup[cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
+                        if (person.comp.includes('環電') || person.comp.includes('工研院') || !person.comp.includes('未知')) {
+                            surpriseCount++;
+                            let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             
-                            if (person.comp.includes('環電') || person.comp.includes('工研院') || !person.comp.includes('未知')) {
-                                surpriseCount++;
-                                let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                                
-                                surpriseHtml += `
-                                    <tr class="border-bottom border-success">
-                                        <td class="text-secondary fw-bold">${actualDetails[cid]}</td>
-                                        <td><span class="badge ${badgeClass}">${person.comp}</span></td>
-                                        <td class="fw-bold text-success">${person.name}</td>
-                                    </tr>
-                                `;
-                            }
+                            // 加上「加點/臨時」的小標籤提醒
+                            surpriseHtml += `
+                                <tr class="border-bottom border-success">
+                                    <td class="text-secondary fw-bold">${swipe.time}</td>
+                                    <td><span class="badge ${badgeClass}">${person.comp}</span></td>
+                                    <td class="fw-bold text-success">${person.name} <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">加點/臨時</span></td>
+                                </tr>
+                            `;
                         }
                     });
 
+                    // 計算準確率
                     let totalPredWithCard = predictedList.length;
                     const calcAcc = (hit, pred) => pred > 0 ? Math.round((hit / pred) * 100) : 0;
                     
