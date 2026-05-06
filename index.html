@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- 引入 PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <!-- 引入 Chart.js (新增折線圖套件) -->
+    <!-- 引入 Chart.js (折線圖套件) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
@@ -156,16 +156,15 @@
             </div>
         </div>
 
-        <!-- 📈 新增：歷史趨勢折線圖區塊 -->
+        <!-- 📈 歷史趨勢折線圖區塊 -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card border-0 shadow-sm" style="background-color: #1e293b; border-radius: 15px;">
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="text-white mb-0">📈 歷史預測與實際用餐趨勢比較</h5>
-                            <span class="badge bg-secondary">近5日數據 (Demo)</span>
+                            <span class="badge bg-secondary" id="trend-badge">近期累積數據</span>
                         </div>
-                        <!-- Canvas 畫布，用來繪製折線圖 -->
                         <canvas id="trendChart" height="70"></canvas>
                     </div>
                 </div>
@@ -241,17 +240,59 @@
         const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
+        
+        // 👇 趨勢紀錄分頁 CSV 網址 👇
+        const trendUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1825976142&single=true&output=csv'; 
 
         let masterDataLookup = {}; 
-        let trendChartInstance = null; // 紀錄圖表實例以防重複繪製
+        let trendChartInstance = null; 
 
         // ==========================================
-        // 📈 繪製歷史趨勢折線圖 (Demo版)
+        // 📈 自動抓取 Google Sheets 資料並畫折線圖
         // ==========================================
-        function renderTrendChart() {
+        function fetchAndRenderTrendChart(nocache) {
+            Papa.parse(trendUrl + nocache, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    let dateLabels = [];
+                    let sysPredictData = [];
+                    let manualPredictData = [];
+                    let actualData = [];
+
+                    results.data.forEach(row => {
+                        // 如果該行日期有值，才將資料塞進陣列裡
+                        if (row['日期'] && row['日期'].trim() !== '') {
+                            // 將 YYYY-MM-DD 簡化為 M/D 讓圖表更美觀
+                            let dateStr = row['日期'].trim();
+                            if (dateStr.includes('-')) {
+                                let parts = dateStr.split('-');
+                                if(parts.length === 3) {
+                                    dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
+                                }
+                            } else if (dateStr.includes('/')) {
+                                let parts = dateStr.split('/');
+                                if(parts.length === 3) {
+                                    dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
+                                }
+                            }
+                            dateLabels.push(dateStr);
+                            
+                            sysPredictData.push(parseInt(row['系統預測']) || 0);
+                            manualPredictData.push(parseInt(row['人工預測']) || 0);
+                            actualData.push(parseInt(row['實際用餐']) || 0);
+                        }
+                    });
+
+                    // 畫出圖表
+                    renderTrendChart(dateLabels, sysPredictData, manualPredictData, actualData);
+                }
+            });
+        }
+
+        function renderTrendChart(labels, sysData, manualData, actData) {
             const ctx = document.getElementById('trendChart').getContext('2d');
             
-            // 如果圖表已經存在，先銷毀避免重疊
             if(trendChartInstance) {
                 trendChartInstance.destroy();
             }
@@ -259,35 +300,34 @@
             trendChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    // X 軸日期 (此為假資料，後續可從 Google Sheets 抓取)
-                    labels: ['5/4', '5/5', '5/6'], 
+                    labels: labels, // 自動帶入 Google Sheets 的日期
                     datasets: [
                         {
                             label: '系統預測',
-                            data: [120, 128, 131, 128, 125], // 5/6為您提供的125
-                            borderColor: '#3b82f6', // 藍色
+                            data: sysData, // 自動帶入 Google Sheets 的資料
+                            borderColor: '#3b82f6', 
                             backgroundColor: 'rgba(59, 130, 246, 0.1)',
                             borderWidth: 2,
                             pointBackgroundColor: '#3b82f6',
-                            tension: 0.4, // 讓線條微彎平滑
-                            fill: true    // 填滿下方顏色
+                            tension: 0.4, 
+                            fill: true    
                         },
                         {
                             label: '人工預測',
-                            data: [130, 135, 140, 135, 145], // 5/6為您提供的145
-                            borderColor: '#a855f7', // 紫色
+                            data: manualData, 
+                            borderColor: '#a855f7', 
                             borderWidth: 2,
-                            borderDash: [5, 5], // 設為虛線
+                            borderDash: [5, 5], 
                             pointBackgroundColor: '#a855f7',
                             tension: 0.4
                         },
                         {
                             label: '實際用餐',
-                            data: [118, 125, 129, 120, 122], // 5/6為您提供的122
-                            borderColor: '#10b981', // 綠色
-                            borderWidth: 3, // 實績線條加粗
+                            data: actData, 
+                            borderColor: '#10b981', 
+                            borderWidth: 3, 
                             pointBackgroundColor: '#10b981',
-                            pointRadius: 5, // 點放大
+                            pointRadius: 5, 
                             tension: 0.4
                         }
                     ]
@@ -315,7 +355,9 @@
                         y: { 
                             ticks: { color: '#94a3b8' }, 
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            suggestedMin: 100 // 設定Y軸預設最低值讓圖表更好看
+                            // 讓折線圖Y軸有一定的彈性空間
+                            suggestedMin: 110, 
+                            suggestedMax: 155
                         }
                     }
                 }
@@ -394,8 +436,8 @@
                 }
             });
             
-            // 系統初始化時，同時繪製趨勢圖
-            renderTrendChart();
+            // 系統初始化時，自動去抓取趨勢紀錄並畫圖
+            fetchAndRenderTrendChart(nocache);
         }
 
         // ==========================================
