@@ -563,7 +563,7 @@
                         }
                     });
 
-                    // 2. 池子裡剩下的紀錄，全都是潛在客戶或加點的！
+                    // 2. 池子裡剩下的紀錄，全都是潛在客戶或加點的！(已移除加點/臨時標籤)
                     swipePool.forEach(swipe => {
                         let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                         
@@ -571,12 +571,12 @@
                             surpriseCount++;
                             let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             
-                            // 加上「加點/臨時」的小標籤提醒
+                            // 只保留乾淨的名字，不再附加標籤
                             surpriseHtml += `
                                 <tr class="border-bottom border-success">
                                     <td class="text-secondary fw-bold">${swipe.time}</td>
                                     <td><span class="badge ${badgeClass}">${person.comp}</span></td>
-                                    <td class="fw-bold text-success">${person.name} <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">加點/臨時</span></td>
+                                    <td class="fw-bold text-success">${person.name}</td>
                                 </tr>
                             `;
                         }
