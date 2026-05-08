@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>中創園區 - 用餐預測戰情室</title>
-    <!-- 引入 Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- 引入 PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <!-- 引入 Chart.js (折線圖套件) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
@@ -35,6 +32,7 @@
             z-index: 10;
         }
         
+        /* 膠囊天氣標籤 (天藍色) */
         .weather-pill {
             display: inline-block;
             background-color: #38bdf8; 
@@ -43,7 +41,19 @@
             padding: 6px 16px;
             border-radius: 50px;
             font-size: 1rem;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+        }
+
+        /* 膠囊週五標籤 (紫色) */
+        .friday-pill {
+            display: inline-block;
+            background-color: #a855f7; 
+            color: white;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 1rem;
+            margin-bottom: 10px;
         }
         
         .vs-circle {
@@ -59,13 +69,11 @@
 </head>
 <body>
     <div class="container py-4">
-        <!-- 標題與更新時間 -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="fw-bold">🍽️ 中創園區 用餐預測戰情室</h2>
             <div class="refresh-tag" id="last-update">最後更新：載入中...</div>
         </div>
 
-        <!-- 🚀 系統狀態區 -->
         <div class="card bg-dark border-secondary mb-4 shadow-sm">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -81,17 +89,24 @@
             </div>
         </div>
 
-        <!-- 🏆 老闆專屬：販售對帳大看板 -->
         <div class="card border-0 mb-4 shadow-lg" style="background-color: #334155;">
             <div class="card-body p-4">
                 <div class="row align-items-center text-center">
                     <div class="col-md-5">
                         <h5 class="text-white-50 mb-3">📝 今日預測總量</h5>
-                        <div id="weather-badge-container" style="display: none;">
-                            <div class="weather-pill shadow-sm" id="weather-badge">
-                                🌧️ 目前天氣：下雨 (預測量 x 1.1)
+                        
+                        <div id="friday-badge-container" style="display: none;">
+                            <div class="friday-pill shadow-sm" id="friday-badge">
+                                🎉 週五外食日 (預測量 x 0.85)
                             </div>
                         </div>
+
+                        <div id="weather-badge-container" style="display: none;">
+                            <div class="weather-pill shadow-sm" id="weather-badge">
+                                🌧️ 目前天氣：下雨 (預測量 x 1.03)
+                            </div>
+                        </div>
+
                         <h1 class="display-2 fw-bold text-light mb-1" id="grand-predict">0</h1>
                         <div class="text-white-50" id="original-predict-text" style="display: none; font-size: 0.95rem;">
                             原始預測人數: <span id="grand-base-predict">0</span>
@@ -112,7 +127,6 @@
             </div>
         </div>
 
-        <!-- KPI 數據區 -->
         <div class="row g-3 mb-4">
             <div class="col-md-3">
                 <div class="card kpi-card bg-primary shadow-sm">
@@ -156,7 +170,6 @@
             </div>
         </div>
 
-        <!-- 📈 歷史趨勢折線圖區塊 -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card border-0 shadow-sm" style="background-color: #1e293b; border-radius: 15px;">
@@ -171,7 +184,6 @@
             </div>
         </div>
 
-        <!-- 單欄垂直排列明細區 -->
         <div class="row">
             <div class="col-12">
                 <div class="table-container">
@@ -361,17 +373,35 @@
         }
 
         // ==========================================
-        // 🌧️ 大看板專屬：抓天氣計算加成
+        // 🌧️ 大看板專屬：抓天氣與「週五外食」加成運算
         // ==========================================
-        async function applyWeatherFactor(baseTotal) {
+        async function applyFactors(rawTotal) {
             const grandPredictEl = document.getElementById('grand-predict');
+            const totalCountEl = document.getElementById('total-count');
+            
             const weatherBadge = document.getElementById('weather-badge');
             const weatherContainer = document.getElementById('weather-badge-container');
+            
+            const fridayContainer = document.getElementById('friday-badge-container');
+            
             const originalText = document.getElementById('original-predict-text');
             const grandBase = document.getElementById('grand-base-predict');
             
-            document.getElementById('total-count').innerText = baseTotal;
+            // 🌟 1. 判斷是否為週五 (getDay() 回傳 5 代表星期五)
+            let isFriday = new Date().getDay() === 5;
+            let currentTotal = rawTotal;
+            
+            if (isFriday) {
+                currentTotal = Math.ceil(rawTotal * 0.85); // 週五打 85 折 (無條件進位)
+                fridayContainer.style.display = 'block';
+            } else {
+                fridayContainer.style.display = 'none';
+            }
+            
+            // 下方藍色 KPI 卡片顯示基準人數 (含週五折扣，但不含天氣加成)
+            totalCountEl.innerText = currentTotal;
 
+            // 🌟 2. 抓取氣象局資料，判斷是否下雨
             try {
                 const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.9&longitude=120.68&current=weather_code,precipitation&timezone=Asia%2FTaipei');
                 const data = await res.json();
@@ -380,27 +410,38 @@
                 const weatherCode = data.current.weather_code;
                 const isRaining = precip > 0 || weatherCode >= 51;
                 
+                let isModified = isFriday; // 記錄是否有修改過原始數字
+                
                 if (isRaining) {
-                    let adjustedTotal = Math.ceil(baseTotal * 1.03);
-                    grandPredictEl.innerText = adjustedTotal;
+                    currentTotal = Math.ceil(currentTotal * 1.03); // 下雨再乘 1.03 倍
                     
                     weatherContainer.style.display = 'block';
-                    weatherBadge.style.backgroundColor = '#38bdf8';
-                    weatherBadge.style.color = '#0f172a';
-                    weatherBadge.innerHTML = `🌧️ 目前天氣：下雨 (預測量 x 1.03)`;
-                    
-                    originalText.style.display = 'block';
-                    grandBase.innerText = baseTotal;
+                    isModified = true;
                 } else {
-                    grandPredictEl.innerText = baseTotal;
                     weatherContainer.style.display = 'none';
+                }
+                
+                grandPredictEl.innerText = currentTotal;
+                
+                // 如果是週五或是有下雨，就把最原始的預測人數以小字印在底下
+                if (isModified) {
+                    originalText.style.display = 'block';
+                    grandBase.innerText = rawTotal;
+                } else {
                     originalText.style.display = 'none';
                 }
+                
             } catch (e) {
                 console.error('氣象資料讀取失敗', e);
-                grandPredictEl.innerText = baseTotal;
+                grandPredictEl.innerText = currentTotal;
                 weatherContainer.style.display = 'none';
-                originalText.style.display = 'none';
+                
+                if (isFriday) {
+                    originalText.style.display = 'block';
+                    grandBase.innerText = rawTotal;
+                } else {
+                    originalText.style.display = 'none';
+                }
             }
         }
 
@@ -486,33 +527,33 @@
                         }
                     });
                     
-                    document.getElementById('grand-predict').innerText = total;
                     document.getElementById('usi-count').innerText = usi;
                     document.getElementById('itri-count').innerText = itri; 
                     document.getElementById('cash-count').innerText = cash; 
                     document.getElementById('table-body').innerHTML = html;
 
-                    applyWeatherFactor(total);
+                    // 🌟 呼叫加成運算引擎 (自動處理週五與 1.03 倍天氣)
+                    applyFactors(total);
+                    
                     fetchActualData(predictedList, nocache);
                 }
             });
         }
 
         // ==========================================
-        // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵 (更新版)
+        // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵
         // ==========================================
         function fetchActualData(predictedList, nocache) {
             Papa.parse(actualUrl + nocache, {
                 download: true,
                 header: true,
                 complete: function(actualResults) {
-                    let allActualSwipes = []; // 改為儲存所有刷卡物件，包含重複刷卡
+                    let allActualSwipes = []; 
                     
                     actualResults.data.forEach(row => {
                         let cid = (row['CardID'] || '').trim().replace(/^0+/, '');
                         let time = (row['Time'] || '').trim();
                         
-                        // 移除原本的去重複判斷 (!actualCards.includes(cid))
                         if (cid && cid.length > 3) {
                             allActualSwipes.push({ cid: cid, time: time });
                         }
@@ -523,7 +564,6 @@
                         return; 
                     }
 
-                    // 實際總販售 = 真實卡機感應總次數 (解決119與120的落差)
                     let actualTotalSold = allActualSwipes.length;
                     document.getElementById('grand-actual').innerText = actualTotalSold;
 
@@ -533,24 +573,19 @@
                     let noShowCount = 0; 
                     let surpriseCount = 0;
 
-                    // 建立「配對消耗池」
                     let swipePool = [...allActualSwipes];
 
-                    // 1. 先用預測名單去消耗池子裡的紀錄
                     predictedList.forEach(p => {
                         let matchIndex = swipePool.findIndex(s => s.cid === p.cardid);
                         
                         if (matchIndex !== -1) {
-                            // 命中！
                             hitTotal++; 
                             if (p.comp.includes('環電')) { hitUsi++; } 
                             else if (p.comp.includes('工研院')) { hitItri++; } 
                             else { hitCash++; } 
                             
-                            // 配對成功後，將該筆刷卡紀錄從池子中移除
                             swipePool.splice(matchIndex, 1);
                         } else {
-                            // 預測會來，但池子裡找不到他的卡號 = 失準
                             noShowCount++; 
                             let badgeClass = p.comp.includes('環電') ? 'badge-usi' : (p.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             noShowHtml += `
@@ -563,7 +598,6 @@
                         }
                     });
 
-                    // 2. 池子裡剩下的紀錄，全都是潛在客戶或加點的！(已移除加點/臨時標籤)
                     swipePool.forEach(swipe => {
                         let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                         
@@ -571,7 +605,6 @@
                             surpriseCount++;
                             let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
                             
-                            // 只保留乾淨的名字，不再附加標籤
                             surpriseHtml += `
                                 <tr class="border-bottom border-success">
                                     <td class="text-secondary fw-bold">${swipe.time}</td>
@@ -582,7 +615,6 @@
                         }
                     });
 
-                    // 計算準確率
                     let totalPredWithCard = predictedList.length;
                     const calcAcc = (hit, pred) => pred > 0 ? Math.round((hit / pred) * 100) : 0;
                     
