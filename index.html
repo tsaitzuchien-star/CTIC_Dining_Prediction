@@ -408,7 +408,13 @@
                 
                 const precip = data.current.precipitation;
                 const weatherCode = data.current.weather_code;
-                const isRaining = precip > 0 || weatherCode >= 51;
+                //const isRaining = precip > 0 || weatherCode >= 51;//
+                // --- 🚀🚀🚀 [簡報模擬專用魔法] 🚀🚀🚀 ---
+                // 請用 let 重新宣告，並強制設定為 true
+                let isRaining = true; 
+                // 🛑 簡報做完記得把上面這行刪除，並把上面原本的 const isRaining 那行註解拿掉！
+
+
                 
                 let isModified = isFriday; // 記錄是否有修改過原始數字
                 
