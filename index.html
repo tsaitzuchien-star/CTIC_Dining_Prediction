@@ -32,7 +32,6 @@
             z-index: 10;
         }
         
-        /* 膠囊天氣標籤 (天藍色) */
         .weather-pill {
             display: inline-block;
             background-color: #38bdf8; 
@@ -44,7 +43,6 @@
             margin-bottom: 10px;
         }
 
-        /* 膠囊週五標籤 (紫色) */
         .friday-pill {
             display: inline-block;
             background-color: #a855f7; 
@@ -204,6 +202,28 @@
             </div>
 
             <div class="col-12">
+                <div class="table-container border border-warning" id="morning-late-container" style="display: none; background-color: #2e261f;">
+                    <h5 class="text-warning mb-3">
+                        ⏰ 預估用餐且 9:30 後才進園 (📢 早盤追加提醒看板) 
+                        <span id="morning-late-badge" class="badge bg-warning text-dark rounded-pill fs-6 ms-2">0</span>
+                    </h5>
+                    <small class="text-white-50 d-block mb-2">※ 此區同仁預估會用餐，但於 09:30 後才刷大門進廠。可在 09:30 報餐時聯絡自助餐業者追加防範！</small>
+                    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr class="text-secondary border-bottom border-warning">
+                                    <th>大門進廠時間</th>
+                                    <th>所屬公司</th>
+                                    <th>員工姓名</th>
+                                </tr>
+                            </thead>
+                            <tbody id="morning-late-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
                 <div class="table-container border border-danger" id="no-show-container" style="display: none;">
                     <h5 class="text-danger mb-3">
                         ⚠️ 預測會來卻沒來 (失準名單) 
@@ -248,7 +268,7 @@
             <div class="col-12">
                 <div class="table-container border border-warning" id="late-container" style="display: none;">
                     <h5 class="text-warning mb-3">
-                        ⏰ 9:30 後進園且有用餐 (延遲入園突擊名單) 
+                        ⏰ 9:30 後進園且有用餐 (延遲入園實際用餐明細) 
                         <span id="late-badge" class="badge bg-warning text-dark rounded-pill fs-6 ms-2">0</span>
                     </h5>
                     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
@@ -270,20 +290,14 @@
     </div>
 
     <script>
-        // 🌟 金鑰設定
         const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
         const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
-        
-        // 趨勢紀錄分頁 CSV 網址
         const trendUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1825976142&single=true&output=csv'; 
 
         let masterDataLookup = {}; 
         let trendChartInstance = null; 
 
-        // ==========================================
-        // 📈 自動抓取 Google Sheets 資料並畫折線圖
-        // ==========================================
         function fetchAndRenderTrendChart(nocache) {
             Papa.parse(trendUrl + nocache, {
                 download: true,
@@ -299,14 +313,10 @@
                             let dateStr = row['日期'].trim();
                             if (dateStr.includes('-')) {
                                 let parts = dateStr.split('-');
-                                if(parts.length === 3) {
-                                    dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
-                                }
+                                if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
                             } else if (dateStr.includes('/')) {
                                 let parts = dateStr.split('/');
-                                if(parts.length === 3) {
-                                    dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
-                                }
+                                if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
                             }
                             dateLabels.push(dateStr);
                             
@@ -315,7 +325,6 @@
                             actualData.push(parseInt(row['實際用餐']) || 0);
                         }
                     });
-
                     renderTrendChart(dateLabels, sysPredictData, manualPredictData, actualData);
                 }
             });
@@ -323,108 +332,54 @@
 
         function renderTrendChart(labels, sysData, manualData, actData) {
             const ctx = document.getElementById('trendChart').getContext('2d');
-            
-            if(trendChartInstance) {
-                trendChartInstance.destroy();
-            }
+            if(trendChartInstance) trendChartInstance.destroy();
 
             trendChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels, 
                     datasets: [
-                        {
-                            label: '系統預測',
-                            data: sysData, 
-                            borderColor: '#3b82f6', 
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2,
-                            pointBackgroundColor: '#3b82f6',
-                            tension: 0.4, 
-                            fill: true    
-                        },
-                        {
-                            label: '人工預測',
-                            data: manualData, 
-                            borderColor: '#a855f7', 
-                            borderWidth: 2,
-                            borderDash: [5, 5], 
-                            pointBackgroundColor: '#a855f7',
-                            tension: 0.4
-                        },
-                        {
-                            label: '實際用餐',
-                            data: actData, 
-                            borderColor: '#10b981', 
-                            borderWidth: 3, 
-                            pointBackgroundColor: '#10b981',
-                            pointRadius: 5, 
-                            tension: 0.4
-                        }
+                        { label: '系統預測', data: sysData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, pointBackgroundColor: '#3b82f6', tension: 0.4, fill: true },
+                        { label: '人工預測', data: manualData, borderColor: '#a855f7', borderWidth: 2, borderDash: [5, 5], pointBackgroundColor: '#a855f7', tension: 0.4 },
+                        { label: '實際用餐', data: actData, borderColor: '#10b981', borderWidth: 3, pointBackgroundColor: '#10b981', pointRadius: 5, tension: 0.4 }
                     ]
                 },
                 options: {
                     responsive: true,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
+                    interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { 
-                            labels: { color: '#f8fafc', font: { family: 'Microsoft JhengHei' } } 
-                        },
-                        tooltip: {
-                            titleFont: { family: 'Microsoft JhengHei', size: 14 },
-                            bodyFont: { family: 'Microsoft JhengHei', size: 13 }
-                        }
+                        legend: { labels: { color: '#f8fafc', font: { family: 'Microsoft JhengHei' } } },
+                        tooltip: { titleFont: { family: 'Microsoft JhengHei', size: 14 }, bodyFont: { family: 'Microsoft JhengHei', size: 13 } }
                     },
                     scales: {
-                        x: { 
-                            ticks: { color: '#94a3b8' }, 
-                            grid: { color: 'rgba(255,255,255,0.05)' } 
-                        },
-                        y: { 
-                            ticks: { color: '#94a3b8' }, 
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            suggestedMin: 110, 
-                            suggestedMax: 155
-                        }
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' }, suggestedMin: 110, suggestedMax: 155 }
                     }
                 }
             });
         }
 
-        // ==========================================
-        // 🌧️ 大看板專屬：抓天氣與「週五外食」加成運算
-        // ==========================================
         async function applyFactors(rawTotal) {
             const grandPredictEl = document.getElementById('grand-predict');
             const totalCountEl = document.getElementById('total-count');
-            
             const weatherBadge = document.getElementById('weather-badge');
             const weatherContainer = document.getElementById('weather-badge-container');
-            
             const fridayContainer = document.getElementById('friday-badge-container');
-            
             const originalText = document.getElementById('original-predict-text');
             const grandBase = document.getElementById('grand-base-predict');
             
-            // 🌟 1. 判斷是否為週五 (getDay() 回傳 5 代表星期五)
             let isFriday = new Date().getDay() === 5;
-            //let isFriday = true;//
             let currentTotal = rawTotal;
             
             if (isFriday) {
-                currentTotal = Math.ceil(rawTotal * 0.85); // 週五打 85 折 (無條件進位)
+                currentTotal = Math.ceil(rawTotal * 0.85); 
                 fridayContainer.style.display = 'block';
             } else {
                 fridayContainer.style.display = 'none';
             }
             
-            // 下方藍色 KPI 卡片顯示基準人數 (含週五折扣，但不含天氣加成)
             totalCountEl.innerText = currentTotal;
 
-            // 🌟 2. 抓取氣象局資料，判斷是否下雨
             try {
                 const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.9&longitude=120.68&current=weather_code,precipitation&timezone=Asia%2FTaipei');
                 const data = await res.json();
@@ -432,17 +387,10 @@
                 const precip = data.current.precipitation;
                 const weatherCode = data.current.weather_code;
                 const isRaining = precip > 0 || weatherCode >= 51;
-
-                // --- 🚀🚀🚀 [簡報模擬專用魔法] 🚀🚀🚀 ---
-                // 請用 let 重新宣告，並強制設定為 true
-                //let isRaining = true;// 
-                // 🛑 簡報做完記得把上面這行刪除，並把上面原本的 const isRaining 那行註解拿掉！
-
-                let isModified = isFriday; // 記錄是否有修改過原始數字
+                let isModified = isFriday; 
                 
                 if (isRaining) {
-                    currentTotal = Math.ceil(currentTotal * 1.03); // 下雨再乘 1.03 倍
-                    
+                    currentTotal = Math.ceil(currentTotal * 1.03); 
                     weatherContainer.style.display = 'block';
                     isModified = true;
                 } else {
@@ -451,19 +399,16 @@
                 
                 grandPredictEl.innerText = currentTotal;
                 
-                // 如果是週五或是有下雨，就把最原始的預測人數以小字印在底下
                 if (isModified) {
                     originalText.style.display = 'block';
                     grandBase.innerText = rawTotal;
                 } else {
                     originalText.style.display = 'none';
                 }
-                
             } catch (e) {
                 console.error('氣象資料讀取失敗', e);
                 grandPredictEl.innerText = currentTotal;
                 weatherContainer.style.display = 'none';
-                
                 if (isFriday) {
                     originalText.style.display = 'block';
                     grandBase.innerText = rawTotal;
@@ -473,12 +418,8 @@
             }
         }
 
-        // ==========================================
-        // 步驟 1：系統啟動，抓「主檔」建檔
-        // ==========================================
         function initSystem() {
             const nocache = '&t=' + new Date().getTime();
-            
             Papa.parse(masterUrl + nocache, {
                 download: true,
                 header: true,
@@ -487,25 +428,17 @@
                         const cid = (row['卡號'] || row['CardID'] || '').trim().replace(/^0+/, '');
                         let name = (row['Name'] || row['姓名'] || '未知').trim();
                         const comp = (row['公司'] || '未知').trim();
-                        
-                        if (name.includes('_')) {
-                            name = name.split('_').pop();
-                        }
-                        
-                        if (cid !== '') {
-                            masterDataLookup[cid] = { name: name, comp: comp };
-                        }
+                        if (name.includes('_')) name = name.split('_').pop();
+                        if (cid !== '') masterDataLookup[cid] = { name: name, comp: comp };
                     });
-                    
                     loadPredictAndCompare(nocache);
                 }
             });
-            
             fetchAndRenderTrendChart(nocache);
         }
 
         // ==========================================
-        // 步驟 2：讀取「預測大腦」，畫出預測表並擷取入園時間
+        // 步驟 2：讀取「預測大腦」，包含早盤遲到客分析
         // ==========================================
         function loadPredictAndCompare(nocache) {
             Papa.parse(predictUrl + nocache, {
@@ -515,35 +448,29 @@
                     let total = 0, usi = 0, itri = 0, cash = 0;
                     let html = ''; 
                     let predictedList = []; 
-                    
-                    // 🌟 新增：存放所有人的進廠時間，用來抓延遲入園名單
                     let allEntryTimes = {};
+                    
+                    // 🌟 新增：早盤 9:30 遲到名單控制變數
+                    let morningLateHtml = '';
+                    let morningLateCount = 0;
                     
                     document.getElementById('last-update').innerText = '最後更新：' + new Date().toLocaleString();
 
                     predictResults.data.forEach(row => {
                         const cardid_raw = row['卡號'] || row['CardID'] || ''; 
                         const cidClean = cardid_raw.trim().replace(/^0+/, '');
-                        
-                        // 將全體人員的進園時間 (EntryTime) 記錄下來
                         const entryTime = (row['EntryTime'] || row['進廠時間'] || '').trim();
+                        
                         if (cidClean !== '' && entryTime !== '') {
                             allEntryTimes[cidClean] = entryTime;
                         }
                         
                         const isRegular = row['是否預測用餐'] || row['是否為常客'];
-                        
                         if (isRegular === '是') {
                             const comp = row['公司'] || '未知';
                             let name = (row['Name'] || row['姓名'] || '未辨識').trim();
-                            
-                            if (name.includes('_')) {
-                                name = name.split('_').pop();
-                            }
-                            
-                            if (masterDataLookup[cidClean]) {
-                                name = masterDataLookup[cidClean].name;
-                            }
+                            if (name.includes('_')) name = name.split('_').pop();
+                            if (masterDataLookup[cidClean]) name = masterDataLookup[cidClean].name;
                             
                             predictedList.push({ cardid: cidClean, name: name.trim(), comp: comp });
                             
@@ -561,6 +488,21 @@
                                     <td class="text-secondary" style="font-size:0.85rem;">${cidClean}</td>
                                 </tr>
                             `;
+
+                            // 🌟 核心升級：如果「進廠時間」晚於 09:30:00，就直接塞進早盤即時看板！
+                            if (entryTime !== '') {
+                                let timePart = entryTime.split(' ').length > 1 ? entryTime.split(' ')[1] : entryTime;
+                                if (timePart >= '09:30:00') {
+                                    morningLateCount++;
+                                    morningLateHtml += `
+                                        <tr class="border-bottom border-warning">
+                                            <td class="text-warning fw-bold">${timePart}</td>
+                                            <td><span class="badge ${badgeClass}">${comp}</span></td>
+                                            <td class="fw-bold text-warning">${name}</td>
+                                        </tr>
+                                    `;
+                                }
+                            }
                         }
                     });
                     
@@ -569,32 +511,31 @@
                     document.getElementById('cash-count').innerText = cash; 
                     document.getElementById('table-body').innerHTML = html;
 
-                    // 🌟 呼叫加成運算引擎 (自動處理週五與 1.03 倍天氣)
+                    // 渲染早盤遲到名單
+                    if (morningLateCount > 0) {
+                        document.getElementById('morning-late-container').style.display = 'block';
+                        document.getElementById('morning-late-body').innerHTML = morningLateHtml;
+                        document.getElementById('morning-late-badge').innerText = morningLateCount;
+                    } else {
+                        document.getElementById('morning-late-container').style.display = 'none';
+                    }
+
                     applyFactors(total);
-                    
-                    // 🌟 傳遞 allEntryTimes 去下一步找遲到客
                     fetchActualData(predictedList, nocache, allEntryTimes);
                 }
             });
         }
 
-        // ==========================================
-        // 步驟 3：讀取「實際紀錄」，抓出放鳥、天降與遲到客
-        // ==========================================
         function fetchActualData(predictedList, nocache, allEntryTimes) {
             Papa.parse(actualUrl + nocache, {
                 download: true,
                 header: true,
                 complete: function(actualResults) {
                     let allActualSwipes = []; 
-                    
                     actualResults.data.forEach(row => {
                         let cid = (row['CardID'] || '').trim().replace(/^0+/, '');
                         let time = (row['Time'] || '').trim();
-                        
-                        if (cid && cid.length > 3) {
-                            allActualSwipes.push({ cid: cid, time: time });
-                        }
+                        if (cid && cid.length > 3) allActualSwipes.push({ cid: cid, time: time });
                     });
 
                     if (allActualSwipes.length === 0) {
@@ -606,30 +547,22 @@
                     document.getElementById('grand-actual').innerText = actualTotalSold;
 
                     let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
-                    let noShowHtml = ''; 
-                    let surpriseHtml = '';
-                    let lateHtml = '';
-                    let noShowCount = 0; 
-                    let surpriseCount = 0;
-                    let lateCount = 0;
+                    let noShowHtml = '', surpriseHtml = '', lateHtml = '';
+                    let noShowCount = 0, surpriseCount = 0, lateCount = 0;
 
                     let swipePool = [...allActualSwipes];
                     let uniqueLateDiners = new Set();
 
-                    // 🌟 1. 抓取 9:30 後才入園的突擊客
+                    // 1. 實際遲到且有用餐明細
                     allActualSwipes.forEach(swipe => {
                         let eTime = allEntryTimes[swipe.cid];
                         if (eTime && !uniqueLateDiners.has(swipe.cid)) {
-                            // 擷取時間部分 (例如將 "2026-05-19 09:45:00" 切出 "09:45:00")
                             let timePart = eTime.split(' ').length > 1 ? eTime.split(' ')[1] : eTime;
-                            
                             if (timePart >= '09:30:00') {
                                 lateCount++;
                                 uniqueLateDiners.add(swipe.cid);
-                                
                                 let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號', comp: '未知' };
                                 let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                                
                                 lateHtml += `
                                     <tr class="border-bottom border-warning">
                                         <td class="text-secondary fw-bold">${timePart}</td>
@@ -641,16 +574,14 @@
                         }
                     });
 
-                    // 🌟 2. 抓放鳥客與配對
+                    // 2. 抓放鳥客
                     predictedList.forEach(p => {
                         let matchIndex = swipePool.findIndex(s => s.cid === p.cardid);
-                        
                         if (matchIndex !== -1) {
                             hitTotal++; 
-                            if (p.comp.includes('環電')) { hitUsi++; } 
-                            else if (p.comp.includes('工研院')) { hitItri++; } 
-                            else { hitCash++; } 
-                            
+                            if (p.comp.includes('環電')) hitUsi++; 
+                            else if (p.comp.includes('工研院')) hitItri++; 
+                            else hitCash++; 
                             swipePool.splice(matchIndex, 1);
                         } else {
                             noShowCount++; 
@@ -665,14 +596,12 @@
                         }
                     });
 
-                    // 🌟 3. 抓天降奇兵
+                    // 3. 天降奇兵
                     swipePool.forEach(swipe => {
                         let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
-                        
                         if (person.comp.includes('環電') || person.comp.includes('工研院') || !person.comp.includes('未知')) {
                             surpriseCount++;
                             let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                            
                             surpriseHtml += `
                                 <tr class="border-bottom border-success">
                                     <td class="text-secondary fw-bold">${swipe.time}</td>
@@ -715,11 +644,9 @@
             if (!b) return;
             b.style.display = 'block'; 
             b.innerText = `準確率 ${acc}%`; 
-            
             if (acc >= 90) { b.style.backgroundColor = 'rgba(16, 185, 129, 0.9)'; }
             else if (acc >= 70) { b.style.backgroundColor = 'rgba(245, 158, 11, 0.9)'; }
             else { b.style.backgroundColor = 'rgba(239, 68, 68, 0.9)'; }
-            
             const textEl = document.getElementById(`actual-${id}-text`);
             if (textEl) {
                 textEl.style.display = 'block'; 
