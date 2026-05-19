@@ -244,6 +244,28 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="col-12">
+                <div class="table-container border border-warning" id="late-container" style="display: none;">
+                    <h5 class="text-warning mb-3">
+                        ⏰ 9:30 後進園且有用餐 (延遲入園突擊名單) 
+                        <span id="late-badge" class="badge bg-warning text-dark rounded-pill fs-6 ms-2">0</span>
+                    </h5>
+                    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr class="text-secondary border-bottom border-warning">
+                                    <th>實際入園時間</th>
+                                    <th>所屬公司</th>
+                                    <th>員工姓名</th>
+                                </tr>
+                            </thead>
+                            <tbody id="late-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
         </div>
     </div>
 
@@ -410,13 +432,12 @@
                 const precip = data.current.precipitation;
                 const weatherCode = data.current.weather_code;
                 const isRaining = precip > 0 || weatherCode >= 51;
+
                 // --- 🚀🚀🚀 [簡報模擬專用魔法] 🚀🚀🚀 ---
                 // 請用 let 重新宣告，並強制設定為 true
                 //let isRaining = true;// 
                 // 🛑 簡報做完記得把上面這行刪除，並把上面原本的 const isRaining 那行註解拿掉！
 
-
-                
                 let isModified = isFriday; // 記錄是否有修改過原始數字
                 
                 if (isRaining) {
@@ -484,7 +505,7 @@
         }
 
         // ==========================================
-        // 步驟 2：讀取「預測大腦」，畫出預測表
+        // 步驟 2：讀取「預測大腦」，畫出預測表並擷取入園時間
         // ==========================================
         function loadPredictAndCompare(nocache) {
             Papa.parse(predictUrl + nocache, {
@@ -495,9 +516,21 @@
                     let html = ''; 
                     let predictedList = []; 
                     
+                    // 🌟 新增：存放所有人的進廠時間，用來抓延遲入園名單
+                    let allEntryTimes = {};
+                    
                     document.getElementById('last-update').innerText = '最後更新：' + new Date().toLocaleString();
 
                     predictResults.data.forEach(row => {
+                        const cardid_raw = row['卡號'] || row['CardID'] || ''; 
+                        const cidClean = cardid_raw.trim().replace(/^0+/, '');
+                        
+                        // 將全體人員的進園時間 (EntryTime) 記錄下來
+                        const entryTime = (row['EntryTime'] || row['進廠時間'] || '').trim();
+                        if (cidClean !== '' && entryTime !== '') {
+                            allEntryTimes[cidClean] = entryTime;
+                        }
+                        
                         const isRegular = row['是否預測用餐'] || row['是否為常客'];
                         
                         if (isRegular === '是') {
@@ -507,9 +540,6 @@
                             if (name.includes('_')) {
                                 name = name.split('_').pop();
                             }
-                            
-                            const cardid_raw = row['卡號'] || row['CardID'] || ''; 
-                            const cidClean = cardid_raw.trim().replace(/^0+/, '');
                             
                             if (masterDataLookup[cidClean]) {
                                 name = masterDataLookup[cidClean].name;
@@ -542,15 +572,16 @@
                     // 🌟 呼叫加成運算引擎 (自動處理週五與 1.03 倍天氣)
                     applyFactors(total);
                     
-                    fetchActualData(predictedList, nocache);
+                    // 🌟 傳遞 allEntryTimes 去下一步找遲到客
+                    fetchActualData(predictedList, nocache, allEntryTimes);
                 }
             });
         }
 
         // ==========================================
-        // 步驟 3：讀取「實際紀錄」，抓出放鳥與天降奇兵
+        // 步驟 3：讀取「實際紀錄」，抓出放鳥、天降與遲到客
         // ==========================================
-        function fetchActualData(predictedList, nocache) {
+        function fetchActualData(predictedList, nocache, allEntryTimes) {
             Papa.parse(actualUrl + nocache, {
                 download: true,
                 header: true,
@@ -577,11 +608,40 @@
                     let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
                     let noShowHtml = ''; 
                     let surpriseHtml = '';
+                    let lateHtml = '';
                     let noShowCount = 0; 
                     let surpriseCount = 0;
+                    let lateCount = 0;
 
                     let swipePool = [...allActualSwipes];
+                    let uniqueLateDiners = new Set();
 
+                    // 🌟 1. 抓取 9:30 後才入園的突擊客
+                    allActualSwipes.forEach(swipe => {
+                        let eTime = allEntryTimes[swipe.cid];
+                        if (eTime && !uniqueLateDiners.has(swipe.cid)) {
+                            // 擷取時間部分 (例如將 "2026-05-19 09:45:00" 切出 "09:45:00")
+                            let timePart = eTime.split(' ').length > 1 ? eTime.split(' ')[1] : eTime;
+                            
+                            if (timePart >= '09:30:00') {
+                                lateCount++;
+                                uniqueLateDiners.add(swipe.cid);
+                                
+                                let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號', comp: '未知' };
+                                let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
+                                
+                                lateHtml += `
+                                    <tr class="border-bottom border-warning">
+                                        <td class="text-secondary fw-bold">${timePart}</td>
+                                        <td><span class="badge ${badgeClass}">${person.comp}</span></td>
+                                        <td class="fw-bold text-warning">${person.name}</td>
+                                    </tr>
+                                `;
+                            }
+                        }
+                    });
+
+                    // 🌟 2. 抓放鳥客與配對
                     predictedList.forEach(p => {
                         let matchIndex = swipePool.findIndex(s => s.cid === p.cardid);
                         
@@ -605,6 +665,7 @@
                         }
                     });
 
+                    // 🌟 3. 抓天降奇兵
                     swipePool.forEach(swipe => {
                         let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
                         
@@ -639,6 +700,11 @@
                         document.getElementById('surprise-container').style.display = 'block'; 
                         document.getElementById('surprise-body').innerHTML = surpriseHtml; 
                         document.getElementById('surprise-badge').innerText = surpriseCount; 
+                    }
+                    if (lateCount > 0) { 
+                        document.getElementById('late-container').style.display = 'block'; 
+                        document.getElementById('late-body').innerHTML = lateHtml; 
+                        document.getElementById('late-badge').innerText = lateCount; 
                     }
                 }
             });
