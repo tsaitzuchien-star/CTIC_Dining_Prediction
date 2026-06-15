@@ -87,11 +87,41 @@
             </div>
         </div>
 
+        <div class="card border-warning mb-4 shadow-lg" style="background-color: #2e261f; border-width: 2px;">
+            <div class="card-body p-4">
+                <h4 class="text-warning fw-bold mb-4">📢 👨‍🍳 團膳通報派單中心 (兩階段回報 SOP)</h4>
+                <div class="row text-center g-3 align-items-center">
+                    <div class="col-md-5">
+                        <div class="p-3 rounded shadow-sm" style="background-color: rgba(255,255,255,0.05); border: 1px dashed #64748b;">
+                            <h5 class="text-info mb-2">第一階段：08:20 備餐底線</h5>
+                            <h1 class="text-light fw-bold mb-0" id="dispatch-base">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
+                            <small class="text-white-50 d-block mt-1" id="dispatch-base-desc">(讀取歷史平均中...)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex flex-column align-items-center justify-content-center">
+                        <div class="text-secondary fw-bold mb-1">等待至 09:20</div>
+                        <h3 class="text-warning mb-0">👉</h3>
+                        <div class="text-secondary fw-bold mt-1">結算追加</div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="p-3 rounded shadow-sm" style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b;">
+                            <h5 class="text-warning mb-2">第二階段：09:20 最終確認</h5>
+                            <h1 class="text-warning fw-bold mb-0" id="dispatch-final">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
+                            <small class="text-white-50 d-block mt-1">系統預測 <span id="dispatch-sys" class="fw-bold">--</span> <span class="badge bg-danger ms-1">+20 遲到常客補償</span></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 rounded text-center" style="background-color: rgba(0,0,0,0.3);">
+                    <span class="badge bg-primary me-2 fs-6 px-3 py-2">☎️ 09:20 聯絡廠商台詞</span>
+                    <span class="text-light fs-5" id="dispatch-action-text">正在計算今日建議追加份數...</span>
+                </div>
+            </div>
+        </div>
         <div class="card border-0 mb-4 shadow-lg" style="background-color: #334155;">
             <div class="card-body p-4">
                 <div class="row align-items-center text-center">
                     <div class="col-md-5">
-                        <h5 class="text-white-50 mb-3">📝 今日預測總量</h5>
+                        <h5 class="text-white-50 mb-3">📝 今日預測總量 (純系統演算)</h5>
                         
                         <div id="friday-badge-container" style="display: none;">
                             <div class="friday-pill shadow-sm" id="friday-badge">
@@ -212,7 +242,7 @@
                         <table class="table table-hover table-sm">
                             <thead>
                                 <tr class="text-secondary border-bottom border-warning">
-                                    <th>大門入園時間</th>
+                                    <th>大門進廠時間</th>
                                     <th>所屬公司</th>
                                     <th>員工姓名</th>
                                 </tr>
@@ -319,7 +349,6 @@
                                 if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
                             }
                             dateLabels.push(dateStr);
-                            
                             sysPredictData.push(parseInt(row['系統預測']) || 0);
                             manualPredictData.push(parseInt(row['人工預測']) || 0);
                             actualData.push(parseInt(row['實際用餐']) || 0);
@@ -383,7 +412,6 @@
             try {
                 const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.9&longitude=120.68&current=weather_code,precipitation&timezone=Asia%2FTaipei');
                 const data = await res.json();
-                
                 const precip = data.current.precipitation;
                 const weatherCode = data.current.weather_code;
                 const isRaining = precip > 0 || weatherCode >= 51;
@@ -398,13 +426,16 @@
                 }
                 
                 grandPredictEl.innerText = currentTotal;
-                
                 if (isModified) {
                     originalText.style.display = 'block';
                     grandBase.innerText = rawTotal;
                 } else {
                     originalText.style.display = 'none';
                 }
+
+                // 🌟 核心：團膳派單中心運算邏輯 🌟
+                updateDispatchCenter(currentTotal);
+
             } catch (e) {
                 console.error('氣象資料讀取失敗', e);
                 grandPredictEl.innerText = currentTotal;
@@ -415,6 +446,52 @@
                 } else {
                     originalText.style.display = 'none';
                 }
+                
+                // 就算天氣 API 掛掉，也要更新團膳派單中心
+                updateDispatchCenter(currentTotal);
+            }
+        }
+
+        // 🌟 獨立抽出：團膳派單中心更新函數
+        function updateDispatchCenter(currentTotal) {
+            const dispatchBaseEl = document.getElementById('dispatch-base');
+            const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
+            const dispatchFinalEl = document.getElementById('dispatch-final');
+            const dispatchSysEl = document.getElementById('dispatch-sys');
+            const dispatchActionTextEl = document.getElementById('dispatch-action-text');
+
+            let dayOfWeek = new Date().getDay();
+            const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            
+            // 根據歷史趨勢紀錄所統計出的各日基本盤 (第一階段)
+            const baseMap = [0, 134, 134, 126, 126, 108, 0]; 
+            let baseAmount = baseMap[dayOfWeek];
+            let todayStr = dayNames[dayOfWeek];
+
+            // 第二階段：當下系統動態預測 + 20份遲到常客緩衝
+            let finalAmount = currentTotal + 20;
+            let addAmount = finalAmount - baseAmount;
+
+            if (baseAmount > 0) {
+                dispatchBaseEl.innerHTML = `${baseAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
+                dispatchBaseDescEl.innerText = `(${todayStr} 歷史基本盤)`;
+            } else {
+                dispatchBaseEl.innerHTML = `--`;
+                dispatchBaseDescEl.innerText = `(假日無預設基本盤)`;
+            }
+
+            dispatchFinalEl.innerHTML = `${finalAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
+            dispatchSysEl.innerText = currentTotal;
+
+            // 產生打電話台詞
+            if (baseAmount === 0) {
+                 dispatchActionTextEl.innerHTML = `「老闆，今天假日，今日總量預估 ${finalAmount} 份！」`;
+            } else if (addAmount > 0) {
+                dispatchActionTextEl.innerHTML = `「老闆，今天底線維持 <b>${baseAmount}</b> 份，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span> (今日總計: ${finalAmount} 份)！」`;
+            } else if (addAmount === 0) {
+                dispatchActionTextEl.innerHTML = `「老闆，今天剛好維持早上的底線 <b>${baseAmount}</b> 份，無須追加，維持原定份量即可！」`;
+            } else {
+                dispatchActionTextEl.innerHTML = `「老闆，今天人比較少，總量預估只有 ${finalAmount} 份，<span class="text-danger fw-bold">請問是否能比早上報的底線減量 ${Math.abs(addAmount)} 份？</span>」`;
             }
         }
 
@@ -437,9 +514,6 @@
             fetchAndRenderTrendChart(nocache);
         }
 
-        // ==========================================
-        // 步驟 2：讀取「預測大腦」，包含早盤遲到客分析
-        // ==========================================
         function loadPredictAndCompare(nocache) {
             Papa.parse(predictUrl + nocache, {
                 download: true,
@@ -449,8 +523,6 @@
                     let html = ''; 
                     let predictedList = []; 
                     let allEntryTimes = {};
-                    
-                    // 🌟 新增：早盤 9:30 遲到名單控制變數
                     let morningLateHtml = '';
                     let morningLateCount = 0;
                     
@@ -480,7 +552,6 @@
                             else { cash++; } 
                             
                             let badgeClass = comp.includes('環電') ? 'badge-usi' : (comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                            
                             html += `
                                 <tr class="border-bottom border-secondary">
                                     <td><span class="badge ${badgeClass}">${comp}</span></td>
@@ -489,7 +560,6 @@
                                 </tr>
                             `;
 
-                            // 🌟 核心升級：如果「進廠時間」晚於 09:30:00，就直接塞進早盤即時看板！
                             if (entryTime !== '') {
                                 let timePart = entryTime.split(' ').length > 1 ? entryTime.split(' ')[1] : entryTime;
                                 if (timePart >= '09:30:00') {
@@ -511,7 +581,6 @@
                     document.getElementById('cash-count').innerText = cash; 
                     document.getElementById('table-body').innerHTML = html;
 
-                    // 渲染早盤遲到名單
                     if (morningLateCount > 0) {
                         document.getElementById('morning-late-container').style.display = 'block';
                         document.getElementById('morning-late-body').innerHTML = morningLateHtml;
@@ -549,11 +618,9 @@
                     let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
                     let noShowHtml = '', surpriseHtml = '', lateHtml = '';
                     let noShowCount = 0, surpriseCount = 0, lateCount = 0;
-
                     let swipePool = [...allActualSwipes];
                     let uniqueLateDiners = new Set();
 
-                    // 1. 實際遲到且有用餐明細
                     allActualSwipes.forEach(swipe => {
                         let eTime = allEntryTimes[swipe.cid];
                         if (eTime && !uniqueLateDiners.has(swipe.cid)) {
@@ -574,7 +641,6 @@
                         }
                     });
 
-                    // 2. 抓放鳥客
                     predictedList.forEach(p => {
                         let matchIndex = swipePool.findIndex(s => s.cid === p.cardid);
                         if (matchIndex !== -1) {
@@ -596,9 +662,8 @@
                         }
                     });
 
-                    // 3. 天降奇兵
                     swipePool.forEach(swipe => {
-                        let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號 (請更新主檔)', comp: '訪客/未建檔' };
+                        let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號', comp: '訪客/未建檔' };
                         if (person.comp.includes('環電') || person.comp.includes('工研院') || !person.comp.includes('未知')) {
                             surpriseCount++;
                             let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
