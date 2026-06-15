@@ -63,6 +63,24 @@
             justify-content: center; 
             margin: 0 auto;
         }
+
+        .locked-badge {
+            font-size: 0.8rem;
+            background-color: #dc2626;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            vertical-align: top;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(220,38,38,0.5);
+            transition: all 0.2s;
+        }
+
+        .locked-badge:hover {
+            background-color: #b91c1c;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -105,23 +123,27 @@
                     </div>
                     <div class="col-md-5">
                         <div class="p-3 rounded shadow-sm" style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b;">
-                            <h5 class="text-warning mb-2">第二階段：09:20 最終確認</h5>
+                            <h5 class="text-warning mb-2" id="dispatch-final-title">
+                                第二階段：09:20 最終確認
+                                <span id="lock-badge" class="locked-badge" style="display: none;" onclick="updateSnapshot()" title="點擊更新快照">🔒 已鎖定</span>
+                            </h5>
                             <h1 class="text-warning fw-bold mb-0" id="dispatch-final">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
-                            <small class="text-white-50 d-block mt-1">系統預測 <span id="dispatch-sys" class="fw-bold">--</span> <span class="badge bg-danger ms-1">+20 遲到常客補償</span></small>
+                            <small class="text-white-50 d-block mt-1">系統結算 <span id="dispatch-sys" class="fw-bold text-light">--</span> <span class="badge bg-danger ms-1">+20 遲到常客補償</span></small>
                         </div>
                     </div>
                 </div>
                 <div class="mt-4 p-3 rounded text-center" style="background-color: rgba(0,0,0,0.3);">
-                    <span class="badge bg-primary me-2 fs-6 px-3 py-2">☎️ 09:20 聯絡廠商台詞</span>
+                    <span class="badge bg-primary me-2 fs-6 px-3 py-2" id="dispatch-call-badge">☎️ 09:20 聯絡廠商台詞</span>
                     <span class="text-light fs-5" id="dispatch-action-text">正在計算今日建議追加份數...</span>
                 </div>
             </div>
         </div>
+        
         <div class="card border-0 mb-4 shadow-lg" style="background-color: #334155;">
             <div class="card-body p-4">
                 <div class="row align-items-center text-center">
                     <div class="col-md-5">
-                        <h5 class="text-white-50 mb-3">📝 今日預測總量 (純系統演算)</h5>
+                        <h5 class="text-white-50 mb-3">📝 今日預測總量 (純系統即時演算)</h5>
                         
                         <div id="friday-badge-container" style="display: none;">
                             <div class="friday-pill shadow-sm" id="friday-badge">
@@ -328,6 +350,16 @@
         let masterDataLookup = {}; 
         let trendChartInstance = null; 
 
+        // 🌟 解除鎖定並更新快照的密技
+        function updateSnapshot() {
+            if(confirm('確定要解除鎖定，並把派單數字更新為「目前最新狀態」嗎？')) {
+                let now = new Date();
+                let todayDateStr = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate(); 
+                localStorage.removeItem('dispatchLock_amount'); // 清除鎖定數據
+                initSystem(); // 重新抓取資料
+            }
+        }
+
         function fetchAndRenderTrendChart(nocache) {
             Papa.parse(trendUrl + nocache, {
                 download: true,
@@ -425,6 +457,7 @@
                     weatherContainer.style.display = 'none';
                 }
                 
+                // 左下角：全域即時數字，不受時間鎖影響
                 grandPredictEl.innerText = currentTotal;
                 if (isModified) {
                     originalText.style.display = 'block';
@@ -433,7 +466,7 @@
                     originalText.style.display = 'none';
                 }
 
-                // 🌟 核心：團膳派單中心運算邏輯 🌟
+                // 將即時數字傳入派單中心，讓它自行判斷是否要啟動時間鎖定
                 updateDispatchCenter(currentTotal);
 
             } catch (e) {
@@ -447,29 +480,78 @@
                     originalText.style.display = 'none';
                 }
                 
-                // 就算天氣 API 掛掉，也要更新團膳派單中心
                 updateDispatchCenter(currentTotal);
             }
         }
 
-        // 🌟 獨立抽出：團膳派單中心更新函數
-        function updateDispatchCenter(currentTotal) {
+        // 🌟 核心：團膳派單中心 + 09:20 時間快取鎖定機制 🌟
+        function updateDispatchCenter(liveSysAmount) {
             const dispatchBaseEl = document.getElementById('dispatch-base');
             const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
             const dispatchFinalEl = document.getElementById('dispatch-final');
             const dispatchSysEl = document.getElementById('dispatch-sys');
             const dispatchActionTextEl = document.getElementById('dispatch-action-text');
+            const dispatchTitleEl = document.getElementById('dispatch-final-title');
+            const lockBadgeEl = document.getElementById('lock-badge');
+            const dispatchBadgeEl = document.getElementById('dispatch-call-badge');
 
-            let dayOfWeek = new Date().getDay();
+            let now = new Date();
+            let dayOfWeek = now.getDay();
+            let todayDateStr = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate(); 
+            let currentHour = now.getHours();
+            let currentMinute = now.getMinutes();
+
             const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-            
-            // 根據歷史趨勢紀錄所統計出的各日基本盤 (第一階段)
             const baseMap = [0, 134, 134, 126, 126, 108, 0]; 
             let baseAmount = baseMap[dayOfWeek];
             let todayStr = dayNames[dayOfWeek];
 
-            // 第二階段：當下系統動態預測 + 20份遲到常客緩衝
-            let finalAmount = currentTotal + 20;
+            // 判斷是否大於等於 09:20
+            let isPastLockTime = (currentHour > 9) || (currentHour === 9 && currentMinute >= 20);
+            
+            let targetSysAmount = liveSysAmount;
+            let isLocked = false;
+
+            // 讀取瀏覽器內的快取鎖定資料
+            let savedDate = localStorage.getItem('dispatchLock_date');
+            let savedAmount = localStorage.getItem('dispatchLock_amount');
+
+            if (isPastLockTime) {
+                // 如果已經過了 09:20，且今天已經有存過鎖定數字，就強制用舊的！
+                if (savedDate === todayDateStr && savedAmount !== null) {
+                    targetSysAmount = parseInt(savedAmount, 10);
+                    isLocked = true;
+                } else {
+                    // 如果剛過 09:20 還沒存過，立刻拍下快照存起來！
+                    localStorage.setItem('dispatchLock_date', todayDateStr);
+                    localStorage.setItem('dispatchLock_amount', liveSysAmount);
+                    targetSysAmount = liveSysAmount;
+                    isLocked = true;
+                }
+            } else {
+                // 如果時間還沒到 09:20，確保解開昨天的鎖，讓數字隨便跳
+                if (savedDate === todayDateStr) {
+                    localStorage.removeItem('dispatchLock_amount');
+                }
+            }
+
+            // 顯示或隱藏 🔒鎖定標籤，並改變標題狀態
+            if (isLocked) {
+                lockBadgeEl.style.display = 'inline-block';
+                dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認`;
+                dispatchTitleEl.appendChild(lockBadgeEl);
+                dispatchBadgeEl.classList.remove('bg-primary');
+                dispatchBadgeEl.classList.add('bg-danger');
+            } else {
+                lockBadgeEl.style.display = 'none';
+                dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
+                dispatchTitleEl.appendChild(lockBadgeEl); // 確保標籤還在 DOM 裡以備後用
+                dispatchBadgeEl.classList.add('bg-primary');
+                dispatchBadgeEl.classList.remove('bg-danger');
+            }
+
+            // 最終確認數量 = 鎖定的系統預測量 + 20
+            let finalAmount = targetSysAmount + 20;
             let addAmount = finalAmount - baseAmount;
 
             if (baseAmount > 0) {
@@ -481,7 +563,7 @@
             }
 
             dispatchFinalEl.innerHTML = `${finalAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
-            dispatchSysEl.innerText = currentTotal;
+            dispatchSysEl.innerText = targetSysAmount;
 
             // 產生打電話台詞
             if (baseAmount === 0) {
