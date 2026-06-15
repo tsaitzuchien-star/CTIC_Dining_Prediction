@@ -32,55 +32,15 @@
             z-index: 10;
         }
         
-        .weather-pill {
-            display: inline-block;
-            background-color: #38bdf8; 
-            color: #0f172a;
-            font-weight: bold;
-            padding: 6px 16px;
-            border-radius: 50px;
-            font-size: 1rem;
-            margin-bottom: 10px;
-        }
-
-        .friday-pill {
-            display: inline-block;
-            background-color: #a855f7; 
-            color: white;
-            font-weight: bold;
-            padding: 6px 16px;
-            border-radius: 50px;
-            font-size: 1rem;
-            margin-bottom: 10px;
-        }
-        
-        .vs-circle {
-            width: 65px; 
-            height: 65px; 
-            background-color: #1e293b;
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto;
-        }
+        .weather-pill { display: inline-block; background-color: #38bdf8; color: #0f172a; font-weight: bold; padding: 6px 16px; border-radius: 50px; font-size: 1rem; margin-bottom: 10px; }
+        .friday-pill { display: inline-block; background-color: #a855f7; color: white; font-weight: bold; padding: 6px 16px; border-radius: 50px; font-size: 1rem; margin-bottom: 10px; }
+        .vs-circle { width: 65px; height: 65px; background-color: #1e293b; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
 
         .locked-badge {
-            font-size: 0.8rem;
-            background-color: #dc2626;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            margin-left: 8px;
-            vertical-align: top;
-            cursor: pointer;
-            box-shadow: 0 0 5px rgba(220,38,38,0.5);
-            transition: all 0.2s;
+            font-size: 0.8rem; background-color: #dc2626; color: white; padding: 3px 8px; border-radius: 4px;
+            margin-left: 8px; vertical-align: top; cursor: pointer; box-shadow: 0 0 5px rgba(220,38,38,0.5); transition: all 0.2s;
         }
-
-        .locked-badge:hover {
-            background-color: #b91c1c;
-            transform: scale(1.05);
-        }
+        .locked-badge:hover { background-color: #b91c1c; transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -146,15 +106,11 @@
                         <h5 class="text-white-50 mb-3">📝 今日預測總量 (純系統即時演算)</h5>
                         
                         <div id="friday-badge-container" style="display: none;">
-                            <div class="friday-pill shadow-sm" id="friday-badge">
-                                🎉 週五外食日 (預測量 x 0.85)
-                            </div>
+                            <div class="friday-pill shadow-sm" id="friday-badge">🎉 週五外食日 (預測量 x 0.85)</div>
                         </div>
 
                         <div id="weather-badge-container" style="display: none;">
-                            <div class="weather-pill shadow-sm" id="weather-badge">
-                                🌧️ 目前天氣：下雨 (預測量 x 1.03)
-                            </div>
+                            <div class="weather-pill shadow-sm" id="weather-badge">🌧️ 目前天氣：下雨 (預測量 x 1.03)</div>
                         </div>
 
                         <h1 class="display-2 fw-bold text-light mb-1" id="grand-predict">0</h1>
@@ -172,6 +128,9 @@
                     <div class="col-md-5">
                         <h5 class="text-white-50 mb-3">🍱 今日實際販售</h5>
                         <h1 class="display-2 fw-bold text-warning mb-0" id="grand-actual">--</h1>
+                        <div class="text-white-50 mt-1" id="actual-breakdown-text" style="display: none; font-size: 0.95rem;">
+                            (包含：卡機刷卡 <span id="actual-card-count" class="text-light fw-bold">0</span> 份 + 現金付款 <span id="actual-cash-addon" class="text-warning fw-bold">0</span> 份)
+                        </div>
                     </div>
                 </div>
             </div>
@@ -212,9 +171,9 @@
                 <div class="card kpi-card shadow-sm" style="background-color: #d97706;">
                     <div class="accuracy-badge" id="acc-cash" style="color: #f8fafc;">準確率 0%</div>
                     <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-dark fw-bold mt-3">現金給付</h6>
+                        <h6 class="text-dark fw-bold mt-3">現金給付預測 (未含現場付現)</h6>
                         <h1 class="display-4 fw-bold text-dark mb-0" id="cash-count">0</h1>
-                        <div class="text-dark fw-bold mt-2" id="actual-cash-text" style="display:none; font-size:0.9rem;">實際命中: <span>0</span></div>
+                        <div class="text-dark fw-bold mt-2" id="actual-cash-text" style="display:none; font-size:0.9rem;">刷卡命中: <span>0</span></div>
                     </div>
                 </div>
             </div>
@@ -349,49 +308,105 @@
 
         let masterDataLookup = {}; 
         let trendChartInstance = null; 
+        
+        // 🌟 新增：全域變數，紀錄今天的現金客數量
+        let globalTodayCash = 0;
 
-        // 🌟 解除鎖定並更新快照的密技
         function updateSnapshot() {
             if(confirm('確定要解除鎖定，並把派單數字更新為「目前最新狀態」嗎？')) {
-                let now = new Date();
-                let todayDateStr = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate(); 
-                localStorage.removeItem('dispatchLock_amount'); // 清除鎖定數據
-                initSystem(); // 重新抓取資料
+                localStorage.removeItem('dispatchLock_amount'); 
+                initSystem(); 
             }
         }
 
-        function fetchAndRenderTrendChart(nocache) {
+        // 🌟 核心：確保非同步資料順序正確。先抓趨勢紀錄(含現金)，再抓主檔與預測名單
+        function initSystem() {
+            const nocache = '&t=' + new Date().getTime();
             Papa.parse(trendUrl + nocache, {
                 download: true,
                 header: true,
-                complete: function(results) {
-                    let dateLabels = [];
-                    let sysPredictData = [];
-                    let manualPredictData = [];
-                    let actualData = [];
-
-                    results.data.forEach(row => {
-                        if (row['日期'] && row['日期'].trim() !== '') {
-                            let dateStr = row['日期'].trim();
-                            if (dateStr.includes('-')) {
-                                let parts = dateStr.split('-');
-                                if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
-                            } else if (dateStr.includes('/')) {
-                                let parts = dateStr.split('/');
-                                if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
-                            }
-                            dateLabels.push(dateStr);
-                            sysPredictData.push(parseInt(row['系統預測']) || 0);
-                            manualPredictData.push(parseInt(row['人工預測']) || 0);
-                            actualData.push(parseInt(row['實際用餐']) || 0);
+                complete: function(trendResults) {
+                    processTrendData(trendResults.data);
+                    
+                    Papa.parse(masterUrl + nocache, {
+                        download: true,
+                        header: true,
+                        complete: function(res) {
+                            res.data.forEach(row => {
+                                const cid = (row['卡號'] || row['CardID'] || '').trim().replace(/^0+/, '');
+                                let name = (row['Name'] || row['姓名'] || '未知').trim();
+                                const comp = (row['公司'] || '未知').trim();
+                                if (name.includes('_')) name = name.split('_').pop();
+                                if (cid !== '') masterDataLookup[cid] = { name: name, comp: comp };
+                            });
+                            loadPredictAndCompare(nocache);
                         }
                     });
-                    renderTrendChart(dateLabels, sysPredictData, manualPredictData, actualData);
                 }
             });
         }
 
-        function renderTrendChart(labels, sysData, manualData, actData) {
+        function processTrendData(data) {
+            let dateLabels = [];
+            let sysPredictData = [];
+            let manualPredictData = [];
+            let actualData = [];
+            let cashData = []; // 新增現金資料陣列
+
+            // 取得今日日期字串用來比對 (支援多種格式)
+            let now = new Date();
+            let yyyy = now.getFullYear();
+            let m = now.getMonth() + 1;
+            let d = now.getDate();
+            let datesToMatch = [
+                `${yyyy}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+                `${yyyy}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
+                `${yyyy}-${m}-${d}`,
+                `${yyyy}/${m}/${d}`
+            ];
+            
+            globalTodayCash = 0; // 每次更新前歸零
+
+            data.forEach(row => {
+                let dateRaw = (row['日期'] || '').trim();
+                if (dateRaw !== '') {
+                    let dateStr = dateRaw;
+                    if (dateStr.includes('-')) {
+                        let parts = dateStr.split('-');
+                        if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
+                    } else if (dateStr.includes('/')) {
+                        let parts = dateStr.split('/');
+                        if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
+                    }
+                    dateLabels.push(dateStr);
+                    sysPredictData.push(parseInt(row['系統預測']) || 0);
+                    
+                    // 🌟 V12 人工預測：如果空白，直接給 null 讓線段完美斷開退場
+                    let manVal = row['人工預測'];
+                    if (manVal === undefined || manVal.trim() === '') {
+                        manualPredictData.push(null);
+                    } else {
+                        manualPredictData.push(parseInt(manVal.trim()) || 0);
+                    }
+                    
+                    let act = parseInt(row['實際用餐']) || 0;
+                    let cash = parseInt(row['現金付款'] || row['現金客'] || 0) || 0;
+                    
+                    // 如果讀取到今天是今天，就把現金數量存下來給大看板用
+                    if (datesToMatch.includes(dateRaw)) {
+                        globalTodayCash = cash;
+                    }
+
+                    // 🌟 綠色線現在代表「總實際用餐」 (刷卡+現金)
+                    actualData.push(act + cash); 
+                    // 🌟 橘色柱狀圖代表「現金客」
+                    cashData.push(cash); 
+                }
+            });
+            renderTrendChart(dateLabels, sysPredictData, manualPredictData, actualData, cashData);
+        }
+
+        function renderTrendChart(labels, sysData, manualData, actData, cashData) {
             const ctx = document.getElementById('trendChart').getContext('2d');
             if(trendChartInstance) trendChartInstance.destroy();
 
@@ -400,9 +415,12 @@
                 data: {
                     labels: labels, 
                     datasets: [
-                        { label: '系統預測', data: sysData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, pointBackgroundColor: '#3b82f6', tension: 0.4, fill: true },
-                        { label: '人工預測', data: manualData, borderColor: '#a855f7', borderWidth: 2, borderDash: [5, 5], pointBackgroundColor: '#a855f7', tension: 0.4 },
-                        { label: '實際用餐', data: actData, borderColor: '#10b981', borderWidth: 3, pointBackgroundColor: '#10b981', pointRadius: 5, tension: 0.4 }
+                        { type: 'line', label: '系統預測', data: sysData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, pointBackgroundColor: '#3b82f6', tension: 0.4, fill: true, yAxisID: 'y' },
+                        // 🌟 加入 spanGaps: false 讓人工預測線斷開
+                        { type: 'line', label: '人工預測', data: manualData, borderColor: '#a855f7', borderWidth: 2, borderDash: [5, 5], pointBackgroundColor: '#a855f7', tension: 0.4, spanGaps: false, yAxisID: 'y' },
+                        { type: 'line', label: '實際總用餐 (含付現)', data: actData, borderColor: '#10b981', borderWidth: 3, pointBackgroundColor: '#10b981', pointRadius: 5, tension: 0.4, yAxisID: 'y' },
+                        // 🌟 V12：新增底部的現金客專屬柱狀圖
+                        { type: 'bar', label: '現金客', data: cashData, backgroundColor: 'rgba(245, 158, 11, 0.6)', borderRadius: 4, yAxisID: 'yCash' }
                     ]
                 },
                 options: {
@@ -414,7 +432,10 @@
                     },
                     scales: {
                         x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' }, suggestedMin: 110, suggestedMax: 155 }
+                        // 主 Y 軸 (折線圖用)
+                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' }, suggestedMin: 100, suggestedMax: 155 },
+                        // 隱藏的第二 Y 軸 (將柱狀圖壓縮在圖表最底端，避免干擾折線)
+                        yCash: { type: 'linear', display: false, position: 'right', min: 0, max: 100 }
                     }
                 }
             });
@@ -457,7 +478,6 @@
                     weatherContainer.style.display = 'none';
                 }
                 
-                // 左下角：全域即時數字，不受時間鎖影響
                 grandPredictEl.innerText = currentTotal;
                 if (isModified) {
                     originalText.style.display = 'block';
@@ -465,26 +485,17 @@
                 } else {
                     originalText.style.display = 'none';
                 }
-
-                // 將即時數字傳入派單中心，讓它自行判斷是否要啟動時間鎖定
                 updateDispatchCenter(currentTotal);
 
             } catch (e) {
-                console.error('氣象資料讀取失敗', e);
                 grandPredictEl.innerText = currentTotal;
                 weatherContainer.style.display = 'none';
-                if (isFriday) {
-                    originalText.style.display = 'block';
-                    grandBase.innerText = rawTotal;
-                } else {
-                    originalText.style.display = 'none';
-                }
-                
+                if (isFriday) { originalText.style.display = 'block'; grandBase.innerText = rawTotal; } 
+                else { originalText.style.display = 'none'; }
                 updateDispatchCenter(currentTotal);
             }
         }
 
-        // 🌟 核心：團膳派單中心 + 09:20 時間快取鎖定機制 🌟
         function updateDispatchCenter(liveSysAmount) {
             const dispatchBaseEl = document.getElementById('dispatch-base');
             const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
@@ -506,36 +517,27 @@
             let baseAmount = baseMap[dayOfWeek];
             let todayStr = dayNames[dayOfWeek];
 
-            // 判斷是否大於等於 09:20
             let isPastLockTime = (currentHour > 9) || (currentHour === 9 && currentMinute >= 20);
-            
             let targetSysAmount = liveSysAmount;
             let isLocked = false;
 
-            // 讀取瀏覽器內的快取鎖定資料
             let savedDate = localStorage.getItem('dispatchLock_date');
             let savedAmount = localStorage.getItem('dispatchLock_amount');
 
             if (isPastLockTime) {
-                // 如果已經過了 09:20，且今天已經有存過鎖定數字，就強制用舊的！
                 if (savedDate === todayDateStr && savedAmount !== null) {
                     targetSysAmount = parseInt(savedAmount, 10);
                     isLocked = true;
                 } else {
-                    // 如果剛過 09:20 還沒存過，立刻拍下快照存起來！
                     localStorage.setItem('dispatchLock_date', todayDateStr);
                     localStorage.setItem('dispatchLock_amount', liveSysAmount);
                     targetSysAmount = liveSysAmount;
                     isLocked = true;
                 }
             } else {
-                // 如果時間還沒到 09:20，確保解開昨天的鎖，讓數字隨便跳
-                if (savedDate === todayDateStr) {
-                    localStorage.removeItem('dispatchLock_amount');
-                }
+                if (savedDate === todayDateStr) { localStorage.removeItem('dispatchLock_amount'); }
             }
 
-            // 顯示或隱藏 🔒鎖定標籤，並改變標題狀態
             if (isLocked) {
                 lockBadgeEl.style.display = 'inline-block';
                 dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認`;
@@ -545,12 +547,11 @@
             } else {
                 lockBadgeEl.style.display = 'none';
                 dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
-                dispatchTitleEl.appendChild(lockBadgeEl); // 確保標籤還在 DOM 裡以備後用
+                dispatchTitleEl.appendChild(lockBadgeEl); 
                 dispatchBadgeEl.classList.add('bg-primary');
                 dispatchBadgeEl.classList.remove('bg-danger');
             }
 
-            // 最終確認數量 = 鎖定的系統預測量 + 20
             let finalAmount = targetSysAmount + 20;
             let addAmount = finalAmount - baseAmount;
 
@@ -565,7 +566,6 @@
             dispatchFinalEl.innerHTML = `${finalAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
             dispatchSysEl.innerText = targetSysAmount;
 
-            // 產生打電話台詞
             if (baseAmount === 0) {
                  dispatchActionTextEl.innerHTML = `「老闆，今天假日，今日總量預估 ${finalAmount} 份！」`;
             } else if (addAmount > 0) {
@@ -575,25 +575,6 @@
             } else {
                 dispatchActionTextEl.innerHTML = `「老闆，今天人比較少，總量預估只有 ${finalAmount} 份，<span class="text-danger fw-bold">請問是否能比早上報的底線減量 ${Math.abs(addAmount)} 份？</span>」`;
             }
-        }
-
-        function initSystem() {
-            const nocache = '&t=' + new Date().getTime();
-            Papa.parse(masterUrl + nocache, {
-                download: true,
-                header: true,
-                complete: function(res) {
-                    res.data.forEach(row => {
-                        const cid = (row['卡號'] || row['CardID'] || '').trim().replace(/^0+/, '');
-                        let name = (row['Name'] || row['姓名'] || '未知').trim();
-                        const comp = (row['公司'] || '未知').trim();
-                        if (name.includes('_')) name = name.split('_').pop();
-                        if (cid !== '') masterDataLookup[cid] = { name: name, comp: comp };
-                    });
-                    loadPredictAndCompare(nocache);
-                }
-            });
-            fetchAndRenderTrendChart(nocache);
         }
 
         function loadPredictAndCompare(nocache) {
@@ -689,13 +670,26 @@
                         if (cid && cid.length > 3) allActualSwipes.push({ cid: cid, time: time });
                     });
 
-                    if (allActualSwipes.length === 0) {
+                    // 🌟 V12：刷卡總數與現金客大合體計算
+                    let swipeTotal = allActualSwipes.length;
+                    let finalActualSold = swipeTotal + globalTodayCash;
+
+                    if (finalActualSold === 0) {
                         document.getElementById('grand-actual').innerText = "--";
+                        document.getElementById('actual-breakdown-text').style.display = 'none';
                         return; 
                     }
 
-                    let actualTotalSold = allActualSwipes.length;
-                    document.getElementById('grand-actual').innerText = actualTotalSold;
+                    // 🌟 更新大看板：顯示合體數字與明細
+                    document.getElementById('grand-actual').innerText = finalActualSold;
+                    
+                    if (globalTodayCash > 0) {
+                        document.getElementById('actual-breakdown-text').style.display = 'block';
+                        document.getElementById('actual-card-count').innerText = swipeTotal;
+                        document.getElementById('actual-cash-addon').innerText = globalTodayCash;
+                    } else {
+                        document.getElementById('actual-breakdown-text').style.display = 'none';
+                    }
 
                     let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
                     let noShowHtml = '', surpriseHtml = '', lateHtml = '';
