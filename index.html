@@ -71,7 +71,7 @@
                 <div class="row text-center g-3 align-items-center">
                     <div class="col-md-5">
                         <div class="p-3 rounded shadow-sm" style="background-color: rgba(255,255,255,0.05); border: 1px dashed #64748b;">
-                            <h5 class="text-info mb-2">第一階段：08:20 備餐底線</h5>
+                            <h5 class="text-info mb-2">第一階段：08:20 早盤預估量</h5>
                             <h1 class="text-light fw-bold mb-0" id="dispatch-base">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
                             <small class="text-white-50 d-block mt-1" id="dispatch-base-desc">(讀取歷史平均中...)</small>
                         </div>
@@ -92,9 +92,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="mt-4 p-3 rounded text-center" style="background-color: rgba(0,0,0,0.3);">
-                    <span class="badge bg-primary me-2 fs-6 px-3 py-2" id="dispatch-call-badge">☎️ 09:20 聯絡廠商台詞</span>
-                    <span class="text-light fs-5" id="dispatch-action-text">正在計算今日建議追加份數...</span>
+                
+                <div class="mt-4 p-3 rounded d-flex justify-content-center align-items-center flex-wrap" style="background-color: rgba(0,0,0,0.3); gap: 15px;">
+                    <span class="badge bg-success fs-6 px-3 py-2" id="dispatch-call-badge">💬 傳送給廠商的 LINE 訊息</span>
+                    <span class="text-light fs-5 text-center" id="dispatch-action-text" style="flex: 1; min-width: 300px;">正在計算今日建議追加份數...</span>
+                    <button class="btn btn-outline-info border-2 fw-bold" onclick="copyLineText()">📋 一鍵複製</button>
                 </div>
             </div>
         </div>
@@ -308,9 +310,23 @@
 
         let masterDataLookup = {}; 
         let trendChartInstance = null; 
-        
-        // 🌟 新增：全域變數，紀錄今天的現金客數量
         let globalTodayCash = 0;
+
+        // 🌟 新增：一鍵複製純文字功能
+        function copyLineText() {
+            let textEl = document.getElementById('dispatch-action-text');
+            // 抓取純文字，過濾掉 HTML 標籤
+            let plainText = textEl.innerText || textEl.textContent;
+            // 把前後的「」引號拿掉，傳 LINE 更自然
+            plainText = plainText.replace(/^「|」$/g, '');
+            
+            navigator.clipboard.writeText(plainText).then(function() {
+                alert('✅ 台詞已成功複製！請直接開啟 LINE 貼上傳送給老闆。');
+            }).catch(function(err) {
+                console.error('複製失敗', err);
+                alert('自動複製失敗，請手動選取文字複製喔！');
+            });
+        }
 
         function updateSnapshot() {
             if(confirm('確定要解除鎖定，並把派單數字更新為「目前最新狀態」嗎？')) {
@@ -319,7 +335,6 @@
             }
         }
 
-        // 🌟 核心：確保非同步資料順序正確。先抓趨勢紀錄(含現金)，再抓主檔與預測名單
         function initSystem() {
             const nocache = '&t=' + new Date().getTime();
             Papa.parse(trendUrl + nocache, {
@@ -351,9 +366,8 @@
             let sysPredictData = [];
             let manualPredictData = [];
             let actualData = [];
-            let cashData = []; // 新增現金資料陣列
+            let cashData = []; 
 
-            // 取得今日日期字串用來比對 (支援多種格式)
             let now = new Date();
             let yyyy = now.getFullYear();
             let m = now.getMonth() + 1;
@@ -365,7 +379,7 @@
                 `${yyyy}/${m}/${d}`
             ];
             
-            globalTodayCash = 0; // 每次更新前歸零
+            globalTodayCash = 0; 
 
             data.forEach(row => {
                 let dateRaw = (row['日期'] || '').trim();
@@ -381,7 +395,6 @@
                     dateLabels.push(dateStr);
                     sysPredictData.push(parseInt(row['系統預測']) || 0);
                     
-                    // 🌟 V12 人工預測：如果空白，直接給 null 讓線段完美斷開退場
                     let manVal = row['人工預測'];
                     if (manVal === undefined || manVal.trim() === '') {
                         manualPredictData.push(null);
@@ -392,14 +405,11 @@
                     let act = parseInt(row['實際用餐']) || 0;
                     let cash = parseInt(row['現金付款'] || row['現金客'] || 0) || 0;
                     
-                    // 如果讀取到今天是今天，就把現金數量存下來給大看板用
                     if (datesToMatch.includes(dateRaw)) {
                         globalTodayCash = cash;
                     }
 
-                    // 🌟 綠色線現在代表「總實際用餐」 (刷卡+現金)
                     actualData.push(act + cash); 
-                    // 🌟 橘色柱狀圖代表「現金客」
                     cashData.push(cash); 
                 }
             });
@@ -416,10 +426,8 @@
                     labels: labels, 
                     datasets: [
                         { type: 'line', label: '系統預測', data: sysData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, pointBackgroundColor: '#3b82f6', tension: 0.4, fill: true, yAxisID: 'y' },
-                        // 🌟 加入 spanGaps: false 讓人工預測線斷開
                         { type: 'line', label: '人工預測', data: manualData, borderColor: '#a855f7', borderWidth: 2, borderDash: [5, 5], pointBackgroundColor: '#a855f7', tension: 0.4, spanGaps: false, yAxisID: 'y' },
                         { type: 'line', label: '實際總用餐 (含付現)', data: actData, borderColor: '#10b981', borderWidth: 3, pointBackgroundColor: '#10b981', pointRadius: 5, tension: 0.4, yAxisID: 'y' },
-                        // 🌟 V12：新增底部的現金客專屬柱狀圖
                         { type: 'bar', label: '現金客', data: cashData, backgroundColor: 'rgba(245, 158, 11, 0.6)', borderRadius: 4, yAxisID: 'yCash' }
                     ]
                 },
@@ -432,9 +440,7 @@
                     },
                     scales: {
                         x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        // 主 Y 軸 (折線圖用)
                         y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' }, suggestedMin: 100, suggestedMax: 155 },
-                        // 隱藏的第二 Y 軸 (將柱狀圖壓縮在圖表最底端，避免干擾折線)
                         yCash: { type: 'linear', display: false, position: 'right', min: 0, max: 100 }
                     }
                 }
@@ -496,6 +502,7 @@
             }
         }
 
+        // 🌟 核心：更新成符合 LINE 自然對話的口語台詞 🌟
         function updateDispatchCenter(liveSysAmount) {
             const dispatchBaseEl = document.getElementById('dispatch-base');
             const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
@@ -542,14 +549,14 @@
                 lockBadgeEl.style.display = 'inline-block';
                 dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認`;
                 dispatchTitleEl.appendChild(lockBadgeEl);
-                dispatchBadgeEl.classList.remove('bg-primary');
+                dispatchBadgeEl.classList.remove('bg-success');
                 dispatchBadgeEl.classList.add('bg-danger');
             } else {
                 lockBadgeEl.style.display = 'none';
                 dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
                 dispatchTitleEl.appendChild(lockBadgeEl); 
-                dispatchBadgeEl.classList.add('bg-primary');
                 dispatchBadgeEl.classList.remove('bg-danger');
+                dispatchBadgeEl.classList.add('bg-success'); 
             }
 
             let finalAmount = targetSysAmount + 20;
@@ -557,23 +564,24 @@
 
             if (baseAmount > 0) {
                 dispatchBaseEl.innerHTML = `${baseAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
-                dispatchBaseDescEl.innerText = `(${todayStr} 歷史基本盤)`;
+                dispatchBaseDescEl.innerText = `(早盤預估量)`;
             } else {
                 dispatchBaseEl.innerHTML = `--`;
-                dispatchBaseDescEl.innerText = `(假日無預設基本盤)`;
+                dispatchBaseDescEl.innerText = `(假日無預估量)`;
             }
 
             dispatchFinalEl.innerHTML = `${finalAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
             dispatchSysEl.innerText = targetSysAmount;
 
+            // 🌟 換成更自然、更有禮貌的 LINE 訊息格式 🌟
             if (baseAmount === 0) {
-                 dispatchActionTextEl.innerHTML = `「老闆，今天假日，今日總量預估 ${finalAmount} 份！」`;
+                 dispatchActionTextEl.innerHTML = `「老闆早，今天是假日，今日總共需要 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount > 0) {
-                dispatchActionTextEl.innerHTML = `「老闆，今天底線維持 <b>${baseAmount}</b> 份，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span> (今日總計: ${finalAmount} 份)！」`;
+                dispatchActionTextEl.innerHTML = `「老闆早，除了早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount === 0) {
-                dispatchActionTextEl.innerHTML = `「老闆，今天剛好維持早上的底線 <b>${baseAmount}</b> 份，無須追加，維持原定份量即可！」`;
+                dispatchActionTextEl.innerHTML = `「老闆早，今天維持早上預估的 <b>${baseAmount} 份</b>，無須追加，謝謝！」`;
             } else {
-                dispatchActionTextEl.innerHTML = `「老闆，今天人比較少，總量預估只有 ${finalAmount} 份，<span class="text-danger fw-bold">請問是否能比早上報的底線減量 ${Math.abs(addAmount)} 份？</span>」`;
+                dispatchActionTextEl.innerHTML = `「老闆早，今天園區人數較少，請問早上預估的數量能否 <span class="text-danger fw-bold">減少 ${Math.abs(addAmount)} 份</span>？今日總計改為 <b>${finalAmount} 份</b>，謝謝！」`;
             }
         }
 
@@ -670,7 +678,6 @@
                         if (cid && cid.length > 3) allActualSwipes.push({ cid: cid, time: time });
                     });
 
-                    // 🌟 V12：刷卡總數與現金客大合體計算
                     let swipeTotal = allActualSwipes.length;
                     let finalActualSold = swipeTotal + globalTodayCash;
 
@@ -680,7 +687,6 @@
                         return; 
                     }
 
-                    // 🌟 更新大看板：顯示合體數字與明細
                     document.getElementById('grand-actual').innerText = finalActualSold;
                     
                     if (globalTodayCash > 0) {
