@@ -77,14 +77,14 @@
                         </div>
                     </div>
                     <div class="col-md-2 d-flex flex-column align-items-center justify-content-center">
-                        <div class="text-secondary fw-bold mb-1">等待至 09:20</div>
+                        <div class="text-secondary fw-bold mb-1">等待至 09:30</div>
                         <h3 class="text-warning mb-0">👉</h3>
                         <div class="text-secondary fw-bold mt-1">結算追加</div>
                     </div>
                     <div class="col-md-5">
                         <div class="p-3 rounded shadow-sm" style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b;">
                             <h5 class="text-warning mb-2" id="dispatch-final-title">
-                                第二階段：09:20 最終確認
+                                第二階段：09:30 最終確認
                                 <span id="lock-badge" class="locked-badge" style="display: none;" onclick="updateSnapshot()" title="點擊更新快照">🔒 已鎖定</span>
                             </h5>
                             <h1 class="text-warning fw-bold mb-0" id="dispatch-final">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
@@ -312,12 +312,10 @@
         let trendChartInstance = null; 
         let globalTodayCash = 0;
 
-        // 🌟 新增：一鍵複製純文字功能
+        // 一鍵複製純文字功能
         function copyLineText() {
             let textEl = document.getElementById('dispatch-action-text');
-            // 抓取純文字，過濾掉 HTML 標籤
             let plainText = textEl.innerText || textEl.textContent;
-            // 把前後的「」引號拿掉，傳 LINE 更自然
             plainText = plainText.replace(/^「|」$/g, '');
             
             navigator.clipboard.writeText(plainText).then(function() {
@@ -502,7 +500,7 @@
             }
         }
 
-        // 🌟 核心：更新成符合 LINE 自然對話的口語台詞 🌟
+        // 🌟 鎖定時間更改為 09:30 🌟
         function updateDispatchCenter(liveSysAmount) {
             const dispatchBaseEl = document.getElementById('dispatch-base');
             const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
@@ -524,7 +522,8 @@
             let baseAmount = baseMap[dayOfWeek];
             let todayStr = dayNames[dayOfWeek];
 
-            let isPastLockTime = (currentHour > 9) || (currentHour === 9 && currentMinute >= 20);
+            // ⚠️ 這裡就是鎖定時間邏輯：改為大於等於 09:30 觸發
+            let isPastLockTime = (currentHour > 9) || (currentHour === 9 && currentMinute >= 30);
             let targetSysAmount = liveSysAmount;
             let isLocked = false;
 
@@ -547,13 +546,15 @@
 
             if (isLocked) {
                 lockBadgeEl.style.display = 'inline-block';
-                dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認`;
+                // ⚠️ 標題改為 09:30
+                dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認`;
                 dispatchTitleEl.appendChild(lockBadgeEl);
                 dispatchBadgeEl.classList.remove('bg-success');
                 dispatchBadgeEl.classList.add('bg-danger');
             } else {
                 lockBadgeEl.style.display = 'none';
-                dispatchTitleEl.innerHTML = `第二階段：09:20 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
+                // ⚠️ 標題改為 09:30
+                dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
                 dispatchTitleEl.appendChild(lockBadgeEl); 
                 dispatchBadgeEl.classList.remove('bg-danger');
                 dispatchBadgeEl.classList.add('bg-success'); 
@@ -573,11 +574,10 @@
             dispatchFinalEl.innerHTML = `${finalAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
             dispatchSysEl.innerText = targetSysAmount;
 
-            // 🌟 換成更自然、更有禮貌的 LINE 訊息格式 🌟
             if (baseAmount === 0) {
                  dispatchActionTextEl.innerHTML = `「老闆早，今天是假日，今日總共需要 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount > 0) {
-                dispatchActionTextEl.innerHTML = `「老闆早，早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
+                dispatchActionTextEl.innerHTML = `「老闆早，除了早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount === 0) {
                 dispatchActionTextEl.innerHTML = `「老闆早，今天維持早上預估的 <b>${baseAmount} 份</b>，無須追加，謝謝！」`;
             } else {
