@@ -19,28 +19,15 @@
         .badge-cash { background-color: #f59e0b; color: #1e293b; } 
         .refresh-tag { font-size: 0.8rem; color: #94a3b8; }
         
-        .accuracy-badge {
-            position: absolute; 
-            top: 0; 
-            right: 0; 
-            background-color: rgba(255,255,255,0.2); 
-            padding: 5px 12px; 
-            border-bottom-left-radius: 12px; 
-            font-weight: bold; 
-            font-size: 0.85rem; 
-            display: none; 
-            z-index: 10;
-        }
-        
+        .accuracy-badge { position: absolute; top: 0; right: 0; background-color: rgba(255,255,255,0.2); padding: 5px 12px; border-bottom-left-radius: 12px; font-weight: bold; font-size: 0.85rem; display: none; z-index: 10; }
         .weather-pill { display: inline-block; background-color: #38bdf8; color: #0f172a; font-weight: bold; padding: 6px 16px; border-radius: 50px; font-size: 1rem; margin-bottom: 10px; }
         .friday-pill { display: inline-block; background-color: #a855f7; color: white; font-weight: bold; padding: 6px 16px; border-radius: 50px; font-size: 1rem; margin-bottom: 10px; }
         .vs-circle { width: 65px; height: 65px; background-color: #1e293b; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
 
         .locked-badge {
             font-size: 0.8rem; background-color: #dc2626; color: white; padding: 3px 8px; border-radius: 4px;
-            margin-left: 8px; vertical-align: top; cursor: pointer; box-shadow: 0 0 5px rgba(220,38,38,0.5); transition: all 0.2s;
+            margin-left: 8px; vertical-align: top; box-shadow: 0 0 5px rgba(220,38,38,0.5);
         }
-        .locked-badge:hover { background-color: #b91c1c; transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -85,10 +72,10 @@
                         <div class="p-3 rounded shadow-sm" style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b;">
                             <h5 class="text-warning mb-2" id="dispatch-final-title">
                                 第二階段：09:30 最終確認
-                                <span id="lock-badge" class="locked-badge" style="display: none;" onclick="updateSnapshot()" title="點擊更新快照">🔒 已鎖定</span>
+                                <span id="lock-badge" class="locked-badge" style="display: none;" title="已自動過濾 09:30 後進廠名單">🔒 依數據鎖定</span>
                             </h5>
                             <h1 class="text-warning fw-bold mb-0" id="dispatch-final">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
-                            <small class="text-white-50 d-block mt-1">系統結算 <span id="dispatch-sys" class="fw-bold text-light">--</span> <span class="badge bg-danger ms-1">+20 遲到常客補償</span></small>
+                            <small class="text-white-50 d-block mt-1">早盤時光機結算 <span id="dispatch-sys" class="fw-bold text-light">--</span> <span class="badge bg-danger ms-1">+20 遲到常客補償</span></small>
                         </div>
                     </div>
                 </div>
@@ -220,7 +207,7 @@
                         ⏰ 預估用餐且 9:30 後才進園 (📢 早盤追加提醒看板) 
                         <span id="morning-late-badge" class="badge bg-warning text-dark rounded-pill fs-6 ms-2">0</span>
                     </h5>
-                    <small class="text-white-50 d-block mb-2">※ 此區同仁預估會用餐，但於 09:30 後才刷大門進廠。可在 09:30 報餐時聯絡自助餐業者追加防範！</small>
+                    <small class="text-white-50 d-block mb-2">※ 此區同仁預估會用餐，但於 09:30 後才刷大門進廠。這群人已自動從上方鎖定派單中剔除，請參考下方 +20 緩衝量。</small>
                     <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
                         <table class="table table-hover table-sm">
                             <thead>
@@ -312,25 +299,15 @@
         let trendChartInstance = null; 
         let globalTodayCash = 0;
 
-        // 一鍵複製純文字功能
         function copyLineText() {
             let textEl = document.getElementById('dispatch-action-text');
             let plainText = textEl.innerText || textEl.textContent;
             plainText = plainText.replace(/^「|」$/g, '');
-            
             navigator.clipboard.writeText(plainText).then(function() {
                 alert('✅ 台詞已成功複製！請直接開啟 LINE 貼上傳送給老闆。');
             }).catch(function(err) {
-                console.error('複製失敗', err);
                 alert('自動複製失敗，請手動選取文字複製喔！');
             });
-        }
-
-        function updateSnapshot() {
-            if(confirm('確定要解除鎖定，並把派單數字更新為「目前最新狀態」嗎？')) {
-                localStorage.removeItem('dispatchLock_amount'); 
-                initSystem(); 
-            }
         }
 
         function initSystem() {
@@ -445,7 +422,8 @@
             });
         }
 
-        async function applyFactors(rawTotal) {
+        // 🌟 V15 核心改寫：時光機分離兩個變數 (總人數 vs 09:30前人數)
+        async function applyFactors(rawTotal, rawMorningTotal) {
             const grandPredictEl = document.getElementById('grand-predict');
             const totalCountEl = document.getElementById('total-count');
             const weatherBadge = document.getElementById('weather-badge');
@@ -456,9 +434,11 @@
             
             let isFriday = new Date().getDay() === 5;
             let currentTotal = rawTotal;
+            let morningTotalCalculated = rawMorningTotal; // 時光機專用變數
             
             if (isFriday) {
                 currentTotal = Math.ceil(rawTotal * 0.85); 
+                morningTotalCalculated = Math.ceil(rawMorningTotal * 0.85); 
                 fridayContainer.style.display = 'block';
             } else {
                 fridayContainer.style.display = 'none';
@@ -476,6 +456,7 @@
                 
                 if (isRaining) {
                     currentTotal = Math.ceil(currentTotal * 1.03); 
+                    morningTotalCalculated = Math.ceil(morningTotalCalculated * 1.03); 
                     weatherContainer.style.display = 'block';
                     isModified = true;
                 } else {
@@ -489,19 +470,22 @@
                 } else {
                     originalText.style.display = 'none';
                 }
-                updateDispatchCenter(currentTotal);
+                
+                // 將兩個數字都傳入派單中心
+                updateDispatchCenter(currentTotal, morningTotalCalculated);
 
             } catch (e) {
                 grandPredictEl.innerText = currentTotal;
                 weatherContainer.style.display = 'none';
                 if (isFriday) { originalText.style.display = 'block'; grandBase.innerText = rawTotal; } 
                 else { originalText.style.display = 'none'; }
-                updateDispatchCenter(currentTotal);
+                
+                updateDispatchCenter(currentTotal, morningTotalCalculated);
             }
         }
 
-        // 🌟 鎖定時間更改為 09:30 🌟
-        function updateDispatchCenter(liveSysAmount) {
+        // 🌟 V15 核心：純粹依靠資料鎖定，丟棄 LocalStorage
+        function updateDispatchCenter(liveSysAmount, morningSysAmount) {
             const dispatchBaseEl = document.getElementById('dispatch-base');
             const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
             const dispatchFinalEl = document.getElementById('dispatch-final');
@@ -513,7 +497,6 @@
 
             let now = new Date();
             let dayOfWeek = now.getDay();
-            let todayDateStr = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate(); 
             let currentHour = now.getHours();
             let currentMinute = now.getMinutes();
 
@@ -522,38 +505,25 @@
             let baseAmount = baseMap[dayOfWeek];
             let todayStr = dayNames[dayOfWeek];
 
-            // ⚠️ 這裡就是鎖定時間邏輯：改為大於等於 09:30 觸發
             let isPastLockTime = (currentHour > 9) || (currentHour === 9 && currentMinute >= 30);
+            
+            // 🔥 時光機判斷邏輯 🔥
             let targetSysAmount = liveSysAmount;
-            let isLocked = false;
-
-            let savedDate = localStorage.getItem('dispatchLock_date');
-            let savedAmount = localStorage.getItem('dispatchLock_amount');
-
+            
             if (isPastLockTime) {
-                if (savedDate === todayDateStr && savedAmount !== null) {
-                    targetSysAmount = parseInt(savedAmount, 10);
-                    isLocked = true;
-                } else {
-                    localStorage.setItem('dispatchLock_date', todayDateStr);
-                    localStorage.setItem('dispatchLock_amount', liveSysAmount);
-                    targetSysAmount = liveSysAmount;
-                    isLocked = true;
-                }
-            } else {
-                if (savedDate === todayDateStr) { localStorage.removeItem('dispatchLock_amount'); }
-            }
-
-            if (isLocked) {
+                // 如果超過 9:30，強制使用經過時光機剔除延遲者的 morningSysAmount！
+                targetSysAmount = morningSysAmount;
+                
                 lockBadgeEl.style.display = 'inline-block';
-                // ⚠️ 標題改為 09:30
                 dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認`;
                 dispatchTitleEl.appendChild(lockBadgeEl);
                 dispatchBadgeEl.classList.remove('bg-success');
                 dispatchBadgeEl.classList.add('bg-danger');
             } else {
+                // 如果還沒到 9:30，就顯示即時跳動的數字
+                targetSysAmount = liveSysAmount;
+                
                 lockBadgeEl.style.display = 'none';
-                // ⚠️ 標題改為 09:30
                 dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
                 dispatchTitleEl.appendChild(lockBadgeEl); 
                 dispatchBadgeEl.classList.remove('bg-danger');
@@ -577,7 +547,7 @@
             if (baseAmount === 0) {
                  dispatchActionTextEl.innerHTML = `「老闆早，今天是假日，今日總共需要 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount > 0) {
-                dispatchActionTextEl.innerHTML = `「老闆早，早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
+                dispatchActionTextEl.innerHTML = `「老闆早，除了早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount === 0) {
                 dispatchActionTextEl.innerHTML = `「老闆早，今天維持早上預估的 <b>${baseAmount} 份</b>，無須追加，謝謝！」`;
             } else {
@@ -591,6 +561,7 @@
                 header: true,
                 complete: function(predictResults) {
                     let total = 0, usi = 0, itri = 0, cash = 0;
+                    let morningTotal = 0; // 🔥 V15: 專門紀錄 09:30 前的名單
                     let html = ''; 
                     let predictedList = []; 
                     let allEntryTimes = {};
@@ -604,6 +575,8 @@
                         const cidClean = cardid_raw.trim().replace(/^0+/, '');
                         const entryTime = (row['EntryTime'] || row['進廠時間'] || '').trim();
                         
+                        let arrivedAfter930 = false;
+
                         if (cidClean !== '' && entryTime !== '') {
                             allEntryTimes[cidClean] = entryTime;
                         }
@@ -617,7 +590,7 @@
                             
                             predictedList.push({ cardid: cidClean, name: name.trim(), comp: comp });
                             
-                            total++;
+                            total++; // 無論幾點進來，都加進全日總數
                             if (comp.includes('環電')) { usi++; } 
                             else if (comp.includes('工研院')) { itri++; } 
                             else { cash++; } 
@@ -635,6 +608,7 @@
                                 let timePart = entryTime.split(' ').length > 1 ? entryTime.split(' ')[1] : entryTime;
                                 if (timePart >= '09:30:00') {
                                     morningLateCount++;
+                                    arrivedAfter930 = true; // 標記為遲到者
                                     morningLateHtml += `
                                         <tr class="border-bottom border-warning">
                                             <td class="text-warning fw-bold">${timePart}</td>
@@ -643,6 +617,11 @@
                                         </tr>
                                     `;
                                 }
+                            }
+
+                            // 🔥 V15 核心：如果他沒有遲到 (包含還沒刷卡的人)，才算進早盤名單
+                            if (!arrivedAfter930) {
+                                morningTotal++; 
                             }
                         }
                     });
@@ -660,7 +639,8 @@
                         document.getElementById('morning-late-container').style.display = 'none';
                     }
 
-                    applyFactors(total);
+                    // 將「全日總量」與「剔除遲到者的 09:30 量」一起送去算天氣加成
+                    applyFactors(total, morningTotal);
                     fetchActualData(predictedList, nocache, allEntryTimes);
                 }
             });
