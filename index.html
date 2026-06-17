@@ -547,7 +547,7 @@
             if (baseAmount === 0) {
                  dispatchActionTextEl.innerHTML = `「老闆早，今天是假日，今日總共需要 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount > 0) {
-                dispatchActionTextEl.innerHTML = `「老闆早，除了早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
+                dispatchActionTextEl.innerHTML = `「老闆早，早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount === 0) {
                 dispatchActionTextEl.innerHTML = `「老闆早，今天維持早上預估的 <b>${baseAmount} 份</b>，無須追加，謝謝！」`;
             } else {
