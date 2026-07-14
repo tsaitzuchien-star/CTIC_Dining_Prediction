@@ -12,8 +12,6 @@
         body { background-color: #0f172a; color: #f8fafc; font-family: "Microsoft JhengHei", sans-serif; }
         .kpi-card { border: none; border-radius: 15px; transition: transform 0.3s; position: relative; overflow: hidden; }
         .kpi-card:hover { transform: translateY(-5px); }
-        .table-container { background-color: #1e293b; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px;}
-        .table { color: #f8fafc; margin-bottom: 0; }
         .badge-usi { background-color: #3b82f6; } 
         .badge-itri { background-color: #10b981; } 
         .badge-cash { background-color: #f59e0b; color: #1e293b; } 
@@ -40,8 +38,8 @@
         <div class="card bg-dark border-secondary mb-4 shadow-sm">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <h5 class="text-warning mb-1">🎯 雲端自動準確度回測系統</h5>
-                    <small class="text-white-50">自動連線比對預測名單與實際卡機紀錄，並抓取漏網之魚。</small>
+                    <h5 class="text-warning mb-1">🎯 雲端自動預測系統 <span class="badge bg-secondary ms-2" style="font-size: 0.75em;">🔒 絕對去識別化 (純數據模式)</span></h5>
+                    <small class="text-white-50">自動連線計算預測名單與實際卡機數量，已徹底移除所有個資明細，確保法規合規。</small>
                 </div>
                 <div class="text-end">
                     <span class="badge bg-success px-3 py-2" style="font-size: 0.9rem;">
@@ -72,7 +70,7 @@
                         <div class="p-3 rounded shadow-sm" style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b;">
                             <h5 class="text-warning mb-2" id="dispatch-final-title">
                                 第二階段：09:30 最終確認
-                                <span id="lock-badge" class="locked-badge" style="display: none;" title="已自動過濾 09:30 後進廠名單">🔒 依數據鎖定</span>
+                                <span id="lock-badge" class="locked-badge" style="display: none;" title="已自動過濾 09:30 後進廠數量">🔒 依數據鎖定</span>
                             </h5>
                             <h1 class="text-warning fw-bold mb-0" id="dispatch-final">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
                             <small class="text-white-50 d-block mt-1">早盤時光機結算 <span id="dispatch-sys" class="fw-bold text-light">--</span> <span class="badge bg-danger ms-1">+20 遲到常客補償</span></small>
@@ -130,7 +128,7 @@
                 <div class="card kpi-card bg-primary shadow-sm">
                     <div class="accuracy-badge" id="acc-total">準確率 0%</div>
                     <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-white-50 mt-3">原始總預測人數</h6>
+                        <h6 class="text-white-50 mt-3">原始總預測數量</h6>
                         <h1 class="display-4 fw-bold mb-0" id="total-count">0</h1>
                         <div class="text-info mt-2" id="actual-total-text" style="display:none; font-size:0.9rem;">刷卡命中: <span>0</span></div>
                     </div>
@@ -181,112 +179,7 @@
                 </div>
             </div>
         </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="table-container">
-                    <h5 class="mb-3">🕒 今日預測用餐名單</h5>
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                                <tr class="text-secondary border-bottom">
-                                    <th>所屬公司</th>
-                                    <th>員工姓名</th>
-                                    <th>卡號(CardID)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12">
-                <div class="table-container border border-warning" id="morning-late-container" style="display: none; background-color: #2e261f;">
-                    <h5 class="text-warning mb-3">
-                        ⏰ 預估用餐且 9:30 後才進園 (📢 早盤追加提醒看板) 
-                        <span id="morning-late-badge" class="badge bg-warning text-dark rounded-pill fs-6 ms-2">0</span>
-                    </h5>
-                    <small class="text-white-50 d-block mb-2">※ 此區同仁預估會用餐，但於 09:30 後才刷大門進廠。這群人已自動從上方鎖定派單中剔除，請參考下方 +20 緩衝量。</small>
-                    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                                <tr class="text-secondary border-bottom border-warning">
-                                    <th>大門進廠時間</th>
-                                    <th>所屬公司</th>
-                                    <th>員工姓名</th>
-                                </tr>
-                            </thead>
-                            <tbody id="morning-late-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12">
-                <div class="table-container border border-danger" id="no-show-container" style="display: none;">
-                    <h5 class="text-danger mb-3">
-                        ⚠️ 預測會來卻沒來 (失準名單) 
-                        <span id="noshow-badge" class="badge bg-danger rounded-pill fs-6 ms-2">0</span>
-                    </h5>
-                    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                                <tr class="text-secondary border-bottom border-danger">
-                                    <th>所屬公司</th>
-                                    <th>員工姓名</th>
-                                    <th>卡號(CardID)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="noshow-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12">
-                <div class="table-container border border-success" id="surprise-container" style="display: none;">
-                    <h5 class="text-success mb-3">
-                        🚨 沒預測到卻跑來了 (潛在客戶) 
-                        <span id="surprise-badge" class="badge bg-success rounded-pill fs-6 ms-2">0</span>
-                    </h5>
-                    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                                <tr class="text-secondary border-bottom border-success">
-                                    <th>實際刷卡時間</th>
-                                    <th>所屬公司</th>
-                                    <th>員工姓名</th>
-                                </tr>
-                            </thead>
-                            <tbody id="surprise-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-12">
-                <div class="table-container border border-warning" id="late-container" style="display: none;">
-                    <h5 class="text-warning mb-3">
-                        ⏰ 9:30 後進園且有用餐 (延遲入園實際用餐明細) 
-                        <span id="late-badge" class="badge bg-warning text-dark rounded-pill fs-6 ms-2">0</span>
-                    </h5>
-                    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
-                            <thead>
-                                <tr class="text-secondary border-bottom border-warning">
-                                    <th>實際入園時間</th>
-                                    <th>所屬公司</th>
-                                    <th>員工姓名</th>
-                                </tr>
-                            </thead>
-                            <tbody id="late-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
+        
     </div>
 
     <script>
@@ -295,7 +188,6 @@
         const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
         const trendUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1825976142&single=true&output=csv'; 
 
-        let masterDataLookup = {}; 
         let trendChartInstance = null; 
         let globalTodayCash = 0;
 
@@ -317,21 +209,7 @@
                 header: true,
                 complete: function(trendResults) {
                     processTrendData(trendResults.data);
-                    
-                    Papa.parse(masterUrl + nocache, {
-                        download: true,
-                        header: true,
-                        complete: function(res) {
-                            res.data.forEach(row => {
-                                const cid = (row['卡號'] || row['CardID'] || '').trim().replace(/^0+/, '');
-                                let name = (row['Name'] || row['姓名'] || '未知').trim();
-                                const comp = (row['公司'] || '未知').trim();
-                                if (name.includes('_')) name = name.split('_').pop();
-                                if (cid !== '') masterDataLookup[cid] = { name: name, comp: comp };
-                            });
-                            loadPredictAndCompare(nocache);
-                        }
-                    });
+                    loadPredictAndCompare(nocache); // 移除了 MasterData 的讀取，因為不需要人名了
                 }
             });
         }
@@ -422,7 +300,6 @@
             });
         }
 
-        // 🌟 V15 核心改寫：時光機分離兩個變數 (總人數 vs 09:30前人數)
         async function applyFactors(rawTotal, rawMorningTotal) {
             const grandPredictEl = document.getElementById('grand-predict');
             const totalCountEl = document.getElementById('total-count');
@@ -434,7 +311,7 @@
             
             let isFriday = new Date().getDay() === 5;
             let currentTotal = rawTotal;
-            let morningTotalCalculated = rawMorningTotal; // 時光機專用變數
+            let morningTotalCalculated = rawMorningTotal; 
             
             if (isFriday) {
                 currentTotal = Math.ceil(rawTotal * 0.85); 
@@ -471,7 +348,6 @@
                     originalText.style.display = 'none';
                 }
                 
-                // 將兩個數字都傳入派單中心
                 updateDispatchCenter(currentTotal, morningTotalCalculated);
 
             } catch (e) {
@@ -484,7 +360,6 @@
             }
         }
 
-        // 🌟 V15 核心：純粹依靠資料鎖定，丟棄 LocalStorage
         function updateDispatchCenter(liveSysAmount, morningSysAmount) {
             const dispatchBaseEl = document.getElementById('dispatch-base');
             const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
@@ -506,23 +381,17 @@
             let todayStr = dayNames[dayOfWeek];
 
             let isPastLockTime = (currentHour > 9) || (currentHour === 9 && currentMinute >= 30);
-            
-            // 🔥 時光機判斷邏輯 🔥
             let targetSysAmount = liveSysAmount;
             
             if (isPastLockTime) {
-                // 如果超過 9:30，強制使用經過時光機剔除延遲者的 morningSysAmount！
                 targetSysAmount = morningSysAmount;
-                
                 lockBadgeEl.style.display = 'inline-block';
                 dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認`;
                 dispatchTitleEl.appendChild(lockBadgeEl);
                 dispatchBadgeEl.classList.remove('bg-success');
                 dispatchBadgeEl.classList.add('bg-danger');
             } else {
-                // 如果還沒到 9:30，就顯示即時跳動的數字
                 targetSysAmount = liveSysAmount;
-                
                 lockBadgeEl.style.display = 'none';
                 dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
                 dispatchTitleEl.appendChild(lockBadgeEl); 
@@ -547,7 +416,7 @@
             if (baseAmount === 0) {
                  dispatchActionTextEl.innerHTML = `「老闆早，今天是假日，今日總共需要 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount > 0) {
-                dispatchActionTextEl.innerHTML = `「老闆早，早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
+                dispatchActionTextEl.innerHTML = `「老闆早，除了早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
             } else if (addAmount === 0) {
                 dispatchActionTextEl.innerHTML = `「老闆早，今天維持早上預估的 <b>${baseAmount} 份</b>，無須追加，謝謝！」`;
             } else {
@@ -561,12 +430,8 @@
                 header: true,
                 complete: function(predictResults) {
                     let total = 0, usi = 0, itri = 0, cash = 0;
-                    let morningTotal = 0; // 🔥 V15: 專門紀錄 09:30 前的名單
-                    let html = ''; 
+                    let morningTotal = 0; 
                     let predictedList = []; 
-                    let allEntryTimes = {};
-                    let morningLateHtml = '';
-                    let morningLateCount = 0;
                     
                     document.getElementById('last-update').innerText = '最後更新：' + new Date().toLocaleString();
 
@@ -576,50 +441,25 @@
                         const entryTime = (row['EntryTime'] || row['進廠時間'] || '').trim();
                         
                         let arrivedAfter930 = false;
-
-                        if (cidClean !== '' && entryTime !== '') {
-                            allEntryTimes[cidClean] = entryTime;
-                        }
                         
                         const isRegular = row['是否預測用餐'] || row['是否為常客'];
                         if (isRegular === '是') {
                             const comp = row['公司'] || '未知';
-                            let name = (row['Name'] || row['姓名'] || '未辨識').trim();
-                            if (name.includes('_')) name = name.split('_').pop();
-                            if (masterDataLookup[cidClean]) name = masterDataLookup[cidClean].name;
+                            // 純資料運算，不再抓取姓名
+                            predictedList.push({ cardid: cidClean, comp: comp });
                             
-                            predictedList.push({ cardid: cidClean, name: name.trim(), comp: comp });
-                            
-                            total++; // 無論幾點進來，都加進全日總數
+                            total++; 
                             if (comp.includes('環電')) { usi++; } 
                             else if (comp.includes('工研院')) { itri++; } 
                             else { cash++; } 
-                            
-                            let badgeClass = comp.includes('環電') ? 'badge-usi' : (comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                            html += `
-                                <tr class="border-bottom border-secondary">
-                                    <td><span class="badge ${badgeClass}">${comp}</span></td>
-                                    <td class="fw-bold">${name}</td>
-                                    <td class="text-secondary" style="font-size:0.85rem;">${cidClean}</td>
-                                </tr>
-                            `;
 
                             if (entryTime !== '') {
                                 let timePart = entryTime.split(' ').length > 1 ? entryTime.split(' ')[1] : entryTime;
                                 if (timePart >= '09:30:00') {
-                                    morningLateCount++;
-                                    arrivedAfter930 = true; // 標記為遲到者
-                                    morningLateHtml += `
-                                        <tr class="border-bottom border-warning">
-                                            <td class="text-warning fw-bold">${timePart}</td>
-                                            <td><span class="badge ${badgeClass}">${comp}</span></td>
-                                            <td class="fw-bold text-warning">${name}</td>
-                                        </tr>
-                                    `;
+                                    arrivedAfter930 = true; 
                                 }
                             }
 
-                            // 🔥 V15 核心：如果他沒有遲到 (包含還沒刷卡的人)，才算進早盤名單
                             if (!arrivedAfter930) {
                                 morningTotal++; 
                             }
@@ -629,24 +469,14 @@
                     document.getElementById('usi-count').innerText = usi;
                     document.getElementById('itri-count').innerText = itri; 
                     document.getElementById('cash-count').innerText = cash; 
-                    document.getElementById('table-body').innerHTML = html;
 
-                    if (morningLateCount > 0) {
-                        document.getElementById('morning-late-container').style.display = 'block';
-                        document.getElementById('morning-late-body').innerHTML = morningLateHtml;
-                        document.getElementById('morning-late-badge').innerText = morningLateCount;
-                    } else {
-                        document.getElementById('morning-late-container').style.display = 'none';
-                    }
-
-                    // 將「全日總量」與「剔除遲到者的 09:30 量」一起送去算天氣加成
                     applyFactors(total, morningTotal);
-                    fetchActualData(predictedList, nocache, allEntryTimes);
+                    fetchActualData(predictedList, nocache);
                 }
             });
         }
 
-        function fetchActualData(predictedList, nocache, allEntryTimes) {
+        function fetchActualData(predictedList, nocache) {
             Papa.parse(actualUrl + nocache, {
                 download: true,
                 header: true,
@@ -654,8 +484,7 @@
                     let allActualSwipes = []; 
                     actualResults.data.forEach(row => {
                         let cid = (row['CardID'] || '').trim().replace(/^0+/, '');
-                        let time = (row['Time'] || '').trim();
-                        if (cid && cid.length > 3) allActualSwipes.push({ cid: cid, time: time });
+                        if (cid && cid.length > 3) allActualSwipes.push({ cid: cid });
                     });
 
                     let swipeTotal = allActualSwipes.length;
@@ -678,31 +507,9 @@
                     }
 
                     let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
-                    let noShowHtml = '', surpriseHtml = '', lateHtml = '';
-                    let noShowCount = 0, surpriseCount = 0, lateCount = 0;
                     let swipePool = [...allActualSwipes];
-                    let uniqueLateDiners = new Set();
 
-                    allActualSwipes.forEach(swipe => {
-                        let eTime = allEntryTimes[swipe.cid];
-                        if (eTime && !uniqueLateDiners.has(swipe.cid)) {
-                            let timePart = eTime.split(' ').length > 1 ? eTime.split(' ')[1] : eTime;
-                            if (timePart >= '09:30:00') {
-                                lateCount++;
-                                uniqueLateDiners.add(swipe.cid);
-                                let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號', comp: '未知' };
-                                let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                                lateHtml += `
-                                    <tr class="border-bottom border-warning">
-                                        <td class="text-secondary fw-bold">${timePart}</td>
-                                        <td><span class="badge ${badgeClass}">${person.comp}</span></td>
-                                        <td class="fw-bold text-warning">${person.name}</td>
-                                    </tr>
-                                `;
-                            }
-                        }
-                    });
-
+                    // 純數學命中計算，不再渲染失準表格
                     predictedList.forEach(p => {
                         let matchIndex = swipePool.findIndex(s => s.cid === p.cardid);
                         if (matchIndex !== -1) {
@@ -711,31 +518,6 @@
                             else if (p.comp.includes('工研院')) hitItri++; 
                             else hitCash++; 
                             swipePool.splice(matchIndex, 1);
-                        } else {
-                            noShowCount++; 
-                            let badgeClass = p.comp.includes('環電') ? 'badge-usi' : (p.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                            noShowHtml += `
-                                <tr class="border-bottom border-danger">
-                                    <td><span class="badge ${badgeClass}">${p.comp}</span></td>
-                                    <td class="fw-bold text-danger">${p.name}</td>
-                                    <td class="text-secondary" style="font-size:0.85rem;">${p.cardid}</td>
-                                </tr>
-                            `;
-                        }
-                    });
-
-                    swipePool.forEach(swipe => {
-                        let person = masterDataLookup[swipe.cid] || { name: '未建檔卡號', comp: '訪客/未建檔' };
-                        if (person.comp.includes('環電') || person.comp.includes('工研院') || !person.comp.includes('未知')) {
-                            surpriseCount++;
-                            let badgeClass = person.comp.includes('環電') ? 'badge-usi' : (person.comp.includes('工研院') ? 'badge-itri' : 'badge-cash');
-                            surpriseHtml += `
-                                <tr class="border-bottom border-success">
-                                    <td class="text-secondary fw-bold">${swipe.time}</td>
-                                    <td><span class="badge ${badgeClass}">${person.comp}</span></td>
-                                    <td class="fw-bold text-success">${person.name}</td>
-                                </tr>
-                            `;
                         }
                     });
 
@@ -746,22 +528,6 @@
                     showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
                     showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); 
                     showAcc('cash', calcAcc(hitCash, predictedList.filter(p => !p.comp.includes('環電') && !p.comp.includes('工研院')).length), hitCash); 
-
-                    if (noShowCount > 0) { 
-                        document.getElementById('no-show-container').style.display = 'block'; 
-                        document.getElementById('noshow-body').innerHTML = noShowHtml; 
-                        document.getElementById('noshow-badge').innerText = noShowCount; 
-                    }
-                    if (surpriseCount > 0) { 
-                        document.getElementById('surprise-container').style.display = 'block'; 
-                        document.getElementById('surprise-body').innerHTML = surpriseHtml; 
-                        document.getElementById('surprise-badge').innerText = surpriseCount; 
-                    }
-                    if (lateCount > 0) { 
-                        document.getElementById('late-container').style.display = 'block'; 
-                        document.getElementById('late-body').innerHTML = lateHtml; 
-                        document.getElementById('late-badge').innerText = lateCount; 
-                    }
                 }
             });
         }
