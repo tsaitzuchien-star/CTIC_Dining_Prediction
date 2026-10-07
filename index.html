@@ -146,13 +146,13 @@ tr.total td{border-bottom:none;font-weight:700}
     </div>
     <div class="panel msgs">
       <div class="msg">
-        <div class="to"><span>08:30 第一版・傳給團膳業者</span></div>
+        <div class="to"><span>08:30 第一版・填入訂餐 App 的今日總份數，由 App 產生明細傳給團膳</span></div>
         <div class="body" id="msg1">--</div>
         <button class="btn" type="button" data-copy="msg1">複製</button>
         <span class="toast" id="toast-msg1" aria-live="polite"></span>
       </div>
       <div class="msg">
-        <div class="to"><span>09:20 追加 / 減量・傳給團膳業者</span><span id="msg2-state"></span></div>
+        <div class="to"><span>09:20 追加 / 減量・只傳這則短訊，不用重貼明細</span><span id="msg2-state"></span></div>
         <div class="body" id="msg2">--</div>
         <button class="btn" type="button" data-copy="msg2">複製</button>
         <span class="toast" id="toast-msg2" aria-live="polite"></span>
@@ -346,14 +346,13 @@ async function refresh(){
 
   // LINE 訊息
   const md = `${Number(now.date.slice(5,7))}/${Number(now.date.slice(8,10))}`;
-  $('msg1').textContent = base.value
-    ? `老闆早，今天（${md} 星期${DAY_NAMES[now.dow]}）中創園區預估 ${base.value} 份，09:20 會再跟您確認追加或減量，謝謝！`
-    : '今天是假日，沒有第一版預估量。';
+  $('msg1').textContent = base.value ? String(base.value) : '今天是假日，沒有第一版預估量。';
   let m2;
-  if(!base.value) m2 = `老闆早，今天總共需要 ${dispatch} 份，謝謝！`;
-  else if(delta>0) m2 = `老闆早，除了早上預估的 ${base.value} 份外，請幫我追加 ${delta} 份放補菜桶，今日總計 ${dispatch} 份，謝謝！`;
-  else if(delta===0) m2 = `老闆早，今天維持早上預估的 ${base.value} 份，無須追加，謝謝！`;
-  else m2 = `老闆早，今天園區人數較少，早上預估的 ${base.value} 份能否減少 ${-delta} 份？今日總計改為 ${dispatch} 份，謝謝！`;
+  const head = `【${md}（${DAY_NAMES[now.dow]}）中創園區 09:20 確認】`;
+  if(!base.value) m2 = `${head}今日最終 ${dispatch} 份，謝謝！`;
+  else if(delta>0) m2 = `${head}追加 ${delta} 份，放補菜桶，其餘照早上明細。今日最終 ${dispatch} 份，謝謝！`;
+  else if(delta===0) m2 = `${head}維持早上明細 ${base.value} 份，不追加，謝謝！`;
+  else m2 = `${head}今天入園人數較少，早上明細減少 ${-delta} 份（從桶餐扣），今日最終 ${dispatch} 份，謝謝！`;
   $('msg2').textContent = m2;
   $('msg2-state').textContent = locked ? '已鎖定' : '09:20 前仍會變動';
 
@@ -462,7 +461,7 @@ document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',(
   const id=b.dataset.copy, text=$(id).textContent, toast=$('toast-'+id);
   const fallback=()=>{ const r=document.createRange(); r.selectNodeContents($(id)); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
     toast.textContent='已選取文字，請按 Ctrl+C 複製'; };
-  if(navigator.clipboard) navigator.clipboard.writeText(text).then(()=>{ toast.textContent='已複製，到 LINE 群組貼上即可'; }).catch(fallback);
+  if(navigator.clipboard) navigator.clipboard.writeText(text).then(()=>{ toast.textContent= id==='msg1' ? '已複製，到訂餐 App 貼上總份數' : '已複製，到 LINE 群組貼上即可'; }).catch(fallback);
   else fallback();
   setTimeout(()=>{ toast.textContent=''; }, 4000);
 }));
