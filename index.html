@@ -193,6 +193,7 @@ tr.total td{border-bottom:none;font-weight:700}
 const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
 const actualUrl  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
 const trendUrl   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1825976142&single=true&output=csv';
+const orderUrl   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=830830&single=true&output=csv';  // 訂餐 App 記錄的 08:30 實際送出份數
 
 // ===== 參數（與 ctic_daily_record.py 一致）=====
 const FRIDAY_FACTOR = 0.85;
@@ -275,14 +276,18 @@ async function refresh(){
   $('today-text').textContent = `${now.date.replace(/-/g,'/')}（${DAY_NAMES[now.dow]}）`;
   $('last-update').textContent = now.hm;
 
-  const [trendRes, predRes, actRes, weather] = await Promise.allSettled([
-    parseCsv(trendUrl), parseCsv(predictUrl), parseCsv(actualUrl), getWeather(now.date)]);
+  const [trendRes, predRes, actRes, weather, orderRes] = await Promise.allSettled([
+    parseCsv(trendUrl), parseCsv(predictUrl), parseCsv(actualUrl), getWeather(now.date), parseCsv(orderUrl)]);
 
   // 趨勢紀錄
   if(trendRes.status==='fulfilled'){ trendRows = parseTrend(trendRes.value); } else errors.push('趨勢紀錄');
   const todayTrend = trendRows.find(r=>r.date===now.date);
   const todayCash = todayTrend ? todayTrend.cash : 0;
   const base = firstVersionBase(trendRows, now.date, now.dow);
+  // 訂餐 App 08:30 實際送出的份數（沒有就用戰情室第一版）
+  const orderRow = orderRes.status==='fulfilled' ? orderRes.value.filter(r=>normDate(r['日期'])===now.date).pop() : null;
+  const sent = orderRow && parseInt(orderRow['用餐人數'])>0
+    ? { people:parseInt(orderRow['用餐人數']), total:parseInt(orderRow['總訂餐份數'])||parseInt(orderRow['用餐人數']) } : null;
 
   // 天氣：09:20 前用即時天氣，之後固定用 09:00
   const W = weather.value || {ok:false};
@@ -347,14 +352,16 @@ async function refresh(){
   // LINE 訊息
   const md = `${Number(now.date.slice(5,7))}/${Number(now.date.slice(8,10))}`;
   $('msg1').textContent = base.value ? String(base.value) : '今天是假日，沒有第一版預估量。';
+  const sentPeople = sent ? sent.people : base.value, sentTotal = sent ? sent.total : base.value;
+  const d2 = dispatch - sentPeople, final2 = sentTotal + d2;
   let m2;
   const head = `【${md}（${DAY_NAMES[now.dow]}）中創園區 09:20 確認】`;
-  if(!base.value) m2 = `${head}今日最終 ${dispatch} 份，謝謝！`;
-  else if(delta>0) m2 = `${head}追加 ${delta} 份，放補菜桶，其餘照早上明細。今日最終 ${dispatch} 份，謝謝！`;
-  else if(delta===0) m2 = `${head}維持早上明細 ${base.value} 份，不追加，謝謝！`;
-  else m2 = `${head}今天入園人數較少，早上明細減少 ${-delta} 份（從桶餐扣），今日最終 ${dispatch} 份，謝謝！`;
+  if(!sentPeople) m2 = `${head}今日最終 ${dispatch} 份，謝謝！`;
+  else if(d2>0) m2 = `${head}追加 ${d2} 份，放補菜桶，其餘照早上明細。今日最終 ${final2} 份，謝謝！`;
+  else if(d2===0) m2 = `${head}維持早上明細 ${sentTotal} 份，不追加，謝謝！`;
+  else m2 = `${head}今天入園人數較少，早上明細減少 ${-d2} 份（從桶餐扣），今日最終 ${final2} 份，謝謝！`;
   $('msg2').textContent = m2;
-  $('msg2-state').textContent = locked ? '已鎖定' : '09:20 前仍會變動';
+  $('msg2-state').textContent = (locked ? '已鎖定' : '09:20 前仍會變動') + (sent ? `・依 App 送出 ${sent.total} 份計算` : '・App 尚未記錄送出份數，先以第一版計算');
 
   // 實際刷卡比對
   let swipes = [];
