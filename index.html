@@ -1,554 +1,474 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中創園區 - 用餐預測戰情室</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: "Microsoft JhengHei", sans-serif; }
-        .kpi-card { border: none; border-radius: 15px; transition: transform 0.3s; position: relative; overflow: hidden; }
-        .kpi-card:hover { transform: translateY(-5px); }
-        .badge-usi { background-color: #3b82f6; } 
-        .badge-itri { background-color: #10b981; } 
-        .badge-cash { background-color: #f59e0b; color: #1e293b; } 
-        .refresh-tag { font-size: 0.8rem; color: #94a3b8; }
-        
-        .accuracy-badge { position: absolute; top: 0; right: 0; background-color: rgba(255,255,255,0.2); padding: 5px 12px; border-bottom-left-radius: 12px; font-weight: bold; font-size: 0.85rem; display: none; z-index: 10; }
-        .weather-pill { display: inline-block; background-color: #38bdf8; color: #0f172a; font-weight: bold; padding: 6px 16px; border-radius: 50px; font-size: 1rem; margin-bottom: 10px; }
-        .friday-pill { display: inline-block; background-color: #a855f7; color: white; font-weight: bold; padding: 6px 16px; border-radius: 50px; font-size: 1rem; margin-bottom: 10px; }
-        .vs-circle { width: 65px; height: 65px; background-color: #1e293b; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
-
-        .locked-badge {
-            font-size: 0.8rem; background-color: #dc2626; color: white; padding: 3px 8px; border-radius: 4px;
-            margin-left: 8px; vertical-align: top; box-shadow: 0 0 5px rgba(220,38,38,0.5);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中創園區 - 用餐預測戰情室</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#EEF0F2; --panel:#FFFFFF; --panel2:#F5F6F8; --line:#D8DCE2;
+  --fg:#18202B; --mute:#5C6675; --accent:#B86E10; --accent-bg:#FBEBD3;
+  --blue:#2F6FB0; --blue-bg:#E3EDF8; --good:#1E8A5A; --good-bg:#DDF2E7;
+  --bad:#C2412F; --bad-bg:#FBE3DF; --ghost:#9AA3AF;
+  --sans:'Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif;
+  --mono:'IBM Plex Mono',Consolas,ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0F141B; --panel:#171E28; --panel2:#1D2531; --line:#2B3544;
+  --fg:#E7EBF0; --mute:#97A2B2; --accent:#F0A94A; --accent-bg:#3A2A14;
+  --blue:#7FB0E8; --blue-bg:#1B2C42; --good:#5CC995; --good-bg:#17342A;
+  --bad:#F07F6E; --bad-bg:#3C1E1A; --ghost:#5E6A7B; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.55;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+h1{font-size:22px;margin:0;font-weight:900;letter-spacing:.5px}
+h2{font-size:16px;margin:0;font-weight:700}
+.sub{color:var(--mute);font-size:13px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:13px;background:var(--panel);border:1px solid var(--line)}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.chip.ok{background:var(--good-bg);border-color:transparent;color:var(--good)}
+.chip.warn{background:var(--accent-bg);border-color:transparent;color:var(--accent)}
+.chip.err{background:var(--bad-bg);border-color:transparent;color:var(--bad)}
+.chip.info{background:var(--blue-bg);border-color:transparent;color:var(--blue)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.step{padding:12px 14px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+.step:last-child{border-right:none}
+.step .t{font-family:var(--mono);font-size:13px;color:var(--mute)}
+.step .n{font-weight:700;font-size:14px}
+.step .s{font-size:12px;color:var(--mute)}
+.step.done .n::after{content:" ✓";color:var(--good)}
+.step.now{background:var(--accent-bg)}
+.step.now .t,.step.now .s{color:var(--accent)}
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+.big{display:flex;flex-direction:column;gap:10px}
+.label{font-size:13px;color:var(--mute);letter-spacing:1px}
+.bignum{font-family:var(--mono);font-weight:600;font-size:76px;line-height:1;letter-spacing:-2px}
+.bignum small{font-family:var(--sans);font-size:20px;font-weight:500;letter-spacing:0;color:var(--mute);margin-left:6px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:700;font-size:14px}
+.pill.up{background:var(--accent-bg);color:var(--accent)}
+.pill.down{background:var(--blue-bg);color:var(--blue)}
+.pill.same{background:var(--good-bg);color:var(--good)}
+.pill.lock{background:var(--fg);color:var(--bg)}
+.pill.live{background:var(--panel2);color:var(--mute);border:1px solid var(--line)}
+.calc{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px}
+.calc .tok{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.calc .tok b{font-family:var(--mono)}
+.calc .op{color:var(--mute);font-family:var(--mono)}
+.mini{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kpi{background:var(--panel2);border-radius:10px;padding:10px 12px;min-width:0}
+.kpi .v{font-family:var(--mono);font-size:28px;font-weight:600}
+.kpi .k{font-size:13px;color:var(--mute)}
+.kpis3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi.hit .v{color:var(--good)} .kpi.miss .v{color:var(--accent)} .kpi.extra .v{color:var(--blue)}
+.msgs{display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;flex-direction:column;gap:8px;background:var(--panel2);border-radius:12px;padding:14px}
+.msg .to{font-size:13px;color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.msg .body{white-space:pre-wrap;font-size:15px;line-height:1.7;overflow-wrap:anywhere}
+.btn{all:unset;cursor:pointer;align-self:flex-start;background:var(--fg);color:var(--bg);padding:7px 14px;border-radius:8px;font-weight:700;font-size:14px}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.toast{font-size:13px;color:var(--good);min-height:1.2em}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;padding:3px 12px;font-size:13px;color:var(--mute)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:500;color:var(--mute);font-size:13px;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line)}
+td.r,th.r{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr.total td{border-bottom:none;font-weight:700}
+.acc{display:flex;gap:22px;flex-wrap:wrap;margin:4px 0 10px}
+.acc div{display:flex;flex-direction:column}
+.acc .v{font-family:var(--mono);font-size:24px;font-weight:600}
+.acc .k{font-size:12px;color:var(--mute)}
+.chartwrap{position:relative;height:260px}
+.banner{display:none;background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:10px 14px;font-weight:700}
+.banner.show{display:block}
+@media (max-width:820px){
+  .hero,.grid2{grid-template-columns:minmax(0,1fr)}
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .step:nth-child(2){border-right:none}
+  .step:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .bignum{font-size:60px}
+}
+</style>
 </head>
 <body>
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold">🍽️ 中創園區 用餐預測戰情室</h2>
-            <div class="refresh-tag" id="last-update">最後更新：載入中...</div>
-        </div>
-
-        <div class="card bg-dark border-secondary mb-4 shadow-sm">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="text-warning mb-1">🎯 雲端自動預測系統 <span class="badge bg-secondary ms-2" style="font-size: 0.75em;">🔒 絕對去識別化 (純數據模式)</span></h5>
-                    <small class="text-white-50">自動連線計算預測名單與實際卡機數量，已徹底移除所有個資明細，確保法規合規。</small>
-                </div>
-                <div class="text-end">
-                    <span class="badge bg-success px-3 py-2" style="font-size: 0.9rem;">
-                        <span class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
-                        雲端自動連線中
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <div class="card border-warning mb-4 shadow-lg" style="background-color: #2e261f; border-width: 2px;">
-            <div class="card-body p-4">
-                <h4 class="text-warning fw-bold mb-4">📢 👨‍🍳 團膳通報派單中心 (兩階段回報 SOP)</h4>
-                <div class="row text-center g-3 align-items-center">
-                    <div class="col-md-5">
-                        <div class="p-3 rounded shadow-sm" style="background-color: rgba(255,255,255,0.05); border: 1px dashed #64748b;">
-                            <h5 class="text-info mb-2">第一階段：08:20 早盤預估量</h5>
-                            <h1 class="text-light fw-bold mb-0" id="dispatch-base">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
-                            <small class="text-white-50 d-block mt-1" id="dispatch-base-desc">(讀取歷史平均中...)</small>
-                        </div>
-                    </div>
-                    <div class="col-md-2 d-flex flex-column align-items-center justify-content-center">
-                        <div class="text-secondary fw-bold mb-1">等待至 09:30</div>
-                        <h3 class="text-warning mb-0">👉</h3>
-                        <div class="text-secondary fw-bold mt-1">結算追加</div>
-                    </div>
-                    <div class="col-md-5">
-                        <div class="p-3 rounded shadow-sm" style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b;">
-                            <h5 class="text-warning mb-2" id="dispatch-final-title">
-                                第二階段：09:30 最終確認
-                                <span id="lock-badge" class="locked-badge" style="display: none;" title="已自動過濾 09:30 後進廠數量">🔒 依數據鎖定</span>
-                            </h5>
-                            <h1 class="text-warning fw-bold mb-0" id="dispatch-final">-- <span style="font-size: 1.2rem;" class="text-white-50">份</span></h1>
-                            <small class="text-white-50 d-block mt-1">早盤時光機結算 <span id="dispatch-sys" class="fw-bold text-light">--</span> <span class="badge bg-danger ms-1">+20 遲到常客補償</span></small>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mt-4 p-3 rounded d-flex justify-content-center align-items-center flex-wrap" style="background-color: rgba(0,0,0,0.3); gap: 15px;">
-                    <span class="badge bg-success fs-6 px-3 py-2" id="dispatch-call-badge">💬 傳送給廠商的 LINE 訊息</span>
-                    <span class="text-light fs-5 text-center" id="dispatch-action-text" style="flex: 1; min-width: 300px;">正在計算今日建議追加份數...</span>
-                    <button class="btn btn-outline-info border-2 fw-bold" onclick="copyLineText()">📋 一鍵複製</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card border-0 mb-4 shadow-lg" style="background-color: #334155;">
-            <div class="card-body p-4">
-                <div class="row align-items-center text-center">
-                    <div class="col-md-5">
-                        <h5 class="text-white-50 mb-3">📝 今日預測總量 (純系統即時演算)</h5>
-                        
-                        <div id="friday-badge-container" style="display: none;">
-                            <div class="friday-pill shadow-sm" id="friday-badge">🎉 週五外食日 (預測量 x 0.85)</div>
-                        </div>
-
-                        <div id="weather-badge-container" style="display: none;">
-                            <div class="weather-pill shadow-sm" id="weather-badge">🌧️ 目前天氣：下雨 (預測量 x 1.03)</div>
-                        </div>
-
-                        <h1 class="display-2 fw-bold text-light mb-1" id="grand-predict">0</h1>
-                        <div class="text-white-50" id="original-predict-text" style="display: none; font-size: 0.95rem;">
-                            原始預測人數: <span id="grand-base-predict">0</span>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-2 d-flex justify-content-center my-4 my-md-0">
-                        <div class="rounded-circle shadow border border-secondary vs-circle">
-                            <h4 class="text-warning fw-bold mb-0" style="font-size: 1.5rem;">VS</h4>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-5">
-                        <h5 class="text-white-50 mb-3">🍱 今日實際販售</h5>
-                        <h1 class="display-2 fw-bold text-warning mb-0" id="grand-actual">--</h1>
-                        <div class="text-white-50 mt-1" id="actual-breakdown-text" style="display: none; font-size: 0.95rem;">
-                            (包含：卡機刷卡 <span id="actual-card-count" class="text-light fw-bold">0</span> 份 + 現金付款 <span id="actual-cash-addon" class="text-warning fw-bold">0</span> 份)
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card kpi-card bg-primary shadow-sm">
-                    <div class="accuracy-badge" id="acc-total">準確率 0%</div>
-                    <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-white-50 mt-3">原始總預測數量</h6>
-                        <h1 class="display-4 fw-bold mb-0" id="total-count">0</h1>
-                        <div class="text-info mt-2" id="actual-total-text" style="display:none; font-size:0.9rem;">刷卡命中: <span>0</span></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card kpi-card shadow-sm" style="background-color: #2563eb;">
-                    <div class="accuracy-badge" id="acc-usi">準確率 0%</div>
-                    <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-white-50 mt-3">環電預測</h6>
-                        <h1 class="display-4 fw-bold mb-0" id="usi-count">0</h1>
-                        <div class="text-info mt-2" id="actual-usi-text" style="display:none; font-size:0.9rem;">實際命中: <span>0</span></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card kpi-card shadow-sm" style="background-color: #059669;">
-                    <div class="accuracy-badge" id="acc-itri">準確率 0%</div>
-                    <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-white-50 mt-3">工研院預測</h6>
-                        <h1 class="display-4 fw-bold mb-0" id="itri-count">0</h1>
-                        <div class="text-info mt-2" id="actual-itri-text" style="display:none; font-size:0.9rem;">實際命中: <span>0</span></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card kpi-card shadow-sm" style="background-color: #d97706;">
-                    <div class="accuracy-badge" id="acc-cash" style="color: #f8fafc;">準確率 0%</div>
-                    <div class="card-body text-center pb-4 pt-3">
-                        <h6 class="text-dark fw-bold mt-3">現金給付預測 (未含現場付現)</h6>
-                        <h1 class="display-4 fw-bold text-dark mb-0" id="cash-count">0</h1>
-                        <div class="text-dark fw-bold mt-2" id="actual-cash-text" style="display:none; font-size:0.9rem;">刷卡命中: <span>0</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm" style="background-color: #1e293b; border-radius: 15px;">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="text-white mb-0">📈 歷史預測與實際用餐趨勢比較</h5>
-                            <span class="badge bg-secondary" id="trend-badge">近期累積數據</span>
-                        </div>
-                        <canvas id="trendChart" height="70"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
+<div class="wrap">
+  <header>
+    <div>
+      <h1>中創園區 用餐預測戰情室</h1>
+      <div class="sub"><span id="today-text">--</span>・最後更新 <span class="num" id="last-update">--:--</span>・只顯示人數，不含個資</div>
     </div>
+    <div class="chips">
+      <span class="chip" id="fresh-chip"><span class="dot"></span><span id="fresh-text">讀取門禁資料中…</span></span>
+      <span class="chip" id="weather-chip" hidden></span>
+      <span class="chip info" id="friday-chip" hidden>週五外食日・×0.85</span>
+    </div>
+  </header>
 
-    <script>
-        const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
-        const actualUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
-        const masterUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1363107051&single=true&output=csv'; 
-        const trendUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1825976142&single=true&output=csv'; 
+  <div class="banner" id="error-banner"></div>
 
-        let trendChartInstance = null; 
-        let globalTodayCash = 0;
+  <nav class="steps" aria-label="今日進度">
+    <div class="step" id="st1"><span class="t">08:30</span><span class="n">第一版報團膳</span><span class="s">依近期同星期實際用餐</span></div>
+    <div class="step" id="st2"><span class="t">09:20</span><span class="n">最終追加 / 減量</span><span class="s">09:20 後數字鎖定</span></div>
+    <div class="step" id="st3"><span class="t">13:15</span><span class="n">卡機結算</span><span class="s">比對刷卡、命中、放鳥</span></div>
+    <div class="step" id="st4"><span class="t">14:35</span><span class="n">分帳完成</span><span class="s">院部扣款、廠商入帳</span></div>
+  </nav>
 
-        function copyLineText() {
-            let textEl = document.getElementById('dispatch-action-text');
-            let plainText = textEl.innerText || textEl.textContent;
-            plainText = plainText.replace(/^「|」$/g, '');
-            navigator.clipboard.writeText(plainText).then(function() {
-                alert('✅ 台詞已成功複製！請直接開啟 LINE 貼上傳送給老闆。');
-            }).catch(function(err) {
-                alert('自動複製失敗，請手動選取文字複製喔！');
-            });
-        }
+  <section class="hero">
+    <div class="panel big">
+      <span class="label" id="h-label">09:20 派單量</span>
+      <div class="bignum" id="h-num">--<small>份</small></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill live" id="h-state">計算中</span><span class="pill" id="h-delta" hidden></span></div>
+      <div class="calc" id="h-calc"></div>
+      <div class="mini">
+        <div class="kpi"><div class="k">08:30 第一版</div><div class="v" id="base-num">--</div><div class="k" id="base-basis">--</div></div>
+        <div class="kpi"><div class="k">今日預測總量（全天已到常客 × 係數）</div><div class="v" id="grand-predict">--</div><div class="k">不含 +20，即趨勢紀錄的「系統預測」</div></div>
+      </div>
+      <div id="settle" hidden>
+        <div class="label" style="margin:6px 0">今日實際用餐 <b class="num" id="actual-total" style="font-size:20px;color:var(--fg)">--</b> 份 <span id="actual-breakdown"></span></div>
+        <div class="kpis3">
+          <div class="kpi hit"><div class="v" id="k-hit">--</div><div class="k">命中：預測有來</div></div>
+          <div class="kpi miss"><div class="v" id="k-miss">--</div><div class="k">放鳥：進園沒吃</div></div>
+          <div class="kpi extra"><div class="v" id="k-extra">--</div><div class="k">天降奇兵：非常客</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel msgs">
+      <div class="msg">
+        <div class="to"><span>08:30 第一版・傳給團膳業者</span></div>
+        <div class="body" id="msg1">--</div>
+        <button class="btn" type="button" data-copy="msg1">複製</button>
+        <span class="toast" id="toast-msg1" aria-live="polite"></span>
+      </div>
+      <div class="msg">
+        <div class="to"><span>09:20 追加 / 減量・傳給團膳業者</span><span id="msg2-state"></span></div>
+        <div class="body" id="msg2">--</div>
+        <button class="btn" type="button" data-copy="msg2">複製</button>
+        <span class="toast" id="toast-msg2" aria-live="polite"></span>
+      </div>
+    </div>
+  </section>
 
-        function initSystem() {
-            const nocache = '&t=' + new Date().getTime();
-            Papa.parse(trendUrl + nocache, {
-                download: true,
-                header: true,
-                complete: function(trendResults) {
-                    processTrendData(trendResults.data);
-                    loadPredictAndCompare(nocache); // 移除了 MasterData 的讀取，因為不需要人名了
-                }
-            });
-        }
+  <div class="grid2">
+    <section class="panel">
+      <div class="head"><h2>今天常客進園曲線</h2><span class="sub">累積人數，虛線為 08:20 與 09:20</span></div>
+      <div class="chartwrap"><canvas id="arrivalChart" aria-label="今天常客累積進園人數"></canvas></div>
+    </section>
+    <section class="panel">
+      <div class="head"><h2>公司別</h2><span class="sub">命中率 = 有進園的常客中，實際來吃的比例</span></div>
+      <table id="comp-table"></table>
+    </section>
+  </div>
 
-        function processTrendData(data) {
-            let dateLabels = [];
-            let sysPredictData = [];
-            let manualPredictData = [];
-            let actualData = [];
-            let cashData = []; 
+  <section class="panel">
+    <div class="head">
+      <h2>預測與實際用餐趨勢</h2>
+      <div class="seg" role="group" aria-label="趨勢範圍">
+        <button type="button" data-range="30" aria-pressed="true">近 30 天</button>
+        <button type="button" data-range="0" aria-pressed="false">全部</button>
+      </div>
+    </div>
+    <div class="acc">
+      <div><span class="v" id="acc-mae">--</span><span class="k">近 20 個工作日平均誤差（份）</span></div>
+      <div><span class="v" id="acc-within">--</span><span class="k">誤差 10 份以內</span></div>
+      <div><span class="v" id="acc-bias">--</span><span class="k" id="acc-bias-k">平均偏差</span></div>
+    </div>
+    <div class="chartwrap" style="height:300px"><canvas id="trendChart" aria-label="歷史系統預測與實際用餐人數"></canvas></div>
+  </section>
+</div>
 
-            let now = new Date();
-            let yyyy = now.getFullYear();
-            let m = now.getMonth() + 1;
-            let d = now.getDate();
-            let datesToMatch = [
-                `${yyyy}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
-                `${yyyy}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`,
-                `${yyyy}-${m}-${d}`,
-                `${yyyy}/${m}/${d}`
-            ];
-            
-            globalTodayCash = 0; 
+<script>
+// ===== 資料來源（Google Sheets 發佈為 CSV）=====
+const predictUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=227038804&single=true&output=csv';
+const actualUrl  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1955525676&single=true&output=csv';
+const trendUrl   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjSVJTEkFjdBTSJKjDnZ18eyf6yBdTBq2eVT8TB6_wB-UDUUVUoF5eUJrLSnDsqpu7OhbS/pub?gid=1825976142&single=true&output=csv';
 
-            data.forEach(row => {
-                let dateRaw = (row['日期'] || '').trim();
-                if (dateRaw !== '') {
-                    let dateStr = dateRaw;
-                    if (dateStr.includes('-')) {
-                        let parts = dateStr.split('-');
-                        if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
-                    } else if (dateStr.includes('/')) {
-                        let parts = dateStr.split('/');
-                        if(parts.length === 3) dateStr = parseInt(parts[1]) + '/' + parseInt(parts[2]);
-                    }
-                    dateLabels.push(dateStr);
-                    sysPredictData.push(parseInt(row['系統預測']) || 0);
-                    
-                    let manVal = row['人工預測'];
-                    if (manVal === undefined || manVal.trim() === '') {
-                        manualPredictData.push(null);
-                    } else {
-                        manualPredictData.push(parseInt(manVal.trim()) || 0);
-                    }
-                    
-                    let act = parseInt(row['實際用餐']) || 0;
-                    let cash = parseInt(row['現金付款'] || row['現金客'] || 0) || 0;
-                    
-                    if (datesToMatch.includes(dateRaw)) {
-                        globalTodayCash = cash;
-                    }
+// ===== 參數（與 ctic_daily_record.py 一致）=====
+const FRIDAY_FACTOR = 0.85;
+const RAIN_FACTOR = 1.03;
+const LATE_BUFFER = 20;                 // 09:20 後晚到常客、非常客、現金客的補償
+const LOCK_TIME = '09:20';              // 回報團膳的時間，之後數字鎖定
+const LOCK_WEATHER_HOUR = 9;            // 鎖定後一律用 09:00 的天氣，之後下雨也不會改變
+const FALLBACK_BASE = [0, 132, 128, 119, 126, 108, 0];  // 趨勢紀錄資料不足時的星期基準量
+const BASE_LOOKBACK = 8;                // 第一版 = 近 8 次同星期實際用餐（含現金）中位數
+const STALE_MINUTES = 15;               // 早上 07:40–09:30 門禁超過 15 分鐘沒有新資料就警告
+const LAT = 23.9, LON = 120.68;
+const DAY_NAMES = ['日','一','二','三','四','五','六'];
 
-                    actualData.push(act + cash); 
-                    cashData.push(cash); 
-                }
-            });
-            renderTrendChart(dateLabels, sysPredictData, manualPredictData, actualData, cashData);
-        }
+let trendChart = null, arrivalChart = null, trendRows = [], trendRange = 30;
 
-        function renderTrendChart(labels, sysData, manualData, actData, cashData) {
-            const ctx = document.getElementById('trendChart').getContext('2d');
-            if(trendChartInstance) trendChartInstance.destroy();
+// ---- 時間工具（固定用台灣時間）----
+function taipeiNow(){
+  const p = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(new Date());
+  const g = t => p.find(x=>x.type===t).value;
+  const hh = g('hour')==='24'?'00':g('hour');
+  const date = `${g('year')}-${g('month')}-${g('day')}`;
+  return { date, hm:`${hh}:${g('minute')}`, dow:new Date(date+'T12:00:00').getDay() };
+}
+function normDate(s){
+  s=(s||'').trim(); const m=s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:'';
+}
+function timeOf(entry){ // "2026-10-07 08:12:33" → "08:12:33"
+  const t=(entry||'').trim().split(/\s+/); const x=t.length>1?t[1]:t[0];
+  return /^\d{1,2}:\d{2}/.test(x||'') ? x.padStart(8,'0') : '';
+}
+function applyFactors(n, isFriday, isRain){
+  let v=n; if(isFriday) v=Math.ceil(v*FRIDAY_FACTOR); if(isRain) v=Math.ceil(v*RAIN_FACTOR); return v;
+}
+function median(a){ const s=[...a].sort((x,y)=>x-y), m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; }
+function parseCsv(url){
+  return new Promise((resolve,reject)=>Papa.parse(url+'&t='+Date.now(),{download:true,header:true,skipEmptyLines:true,
+    complete:r=>resolve(r.data), error:e=>reject(e)}));
+}
+const $ = id => document.getElementById(id);
+function toMin(hm){ const [h,m]=hm.split(':').map(Number); return h*60+m; }
+function fromMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
-            trendChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels, 
-                    datasets: [
-                        { type: 'line', label: '系統預測', data: sysData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, pointBackgroundColor: '#3b82f6', tension: 0.4, fill: true, yAxisID: 'y' },
-                        { type: 'line', label: '人工預測', data: manualData, borderColor: '#a855f7', borderWidth: 2, borderDash: [5, 5], pointBackgroundColor: '#a855f7', tension: 0.4, spanGaps: false, yAxisID: 'y' },
-                        { type: 'line', label: '實際總用餐 (含付現)', data: actData, borderColor: '#10b981', borderWidth: 3, pointBackgroundColor: '#10b981', pointRadius: 5, tension: 0.4, yAxisID: 'y' },
-                        { type: 'bar', label: '現金客', data: cashData, backgroundColor: 'rgba(245, 158, 11, 0.6)', borderRadius: 4, yAxisID: 'yCash' }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { labels: { color: '#f8fafc', font: { family: 'Microsoft JhengHei' } } },
-                        tooltip: { titleFont: { family: 'Microsoft JhengHei', size: 14 }, bodyFont: { family: 'Microsoft JhengHei', size: 13 } }
-                    },
-                    scales: {
-                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        y: { type: 'linear', display: true, position: 'left', ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' }, suggestedMin: 100, suggestedMax: 155 },
-                        yCash: { type: 'linear', display: false, position: 'right', min: 0, max: 100 }
-                    }
-                }
-            });
-        }
+// ---- 天氣：即時 + 今天 09:00 ----
+async function getWeather(today){
+  try{
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=weather_code,precipitation&hourly=weather_code,precipitation&timezone=Asia%2FTaipei&start_date=${today}&end_date=${today}`);
+    const d = await r.json();
+    const rainy = (p,c)=> (p||0)>0 || (c||0)>=51;
+    const idx = d.hourly.time.findIndex(t=>t.endsWith(`T${String(LOCK_WEATHER_HOUR).padStart(2,'0')}:00`));
+    return { ok:true, now:rainy(d.current.precipitation,d.current.weather_code),
+             at9: idx>=0 ? rainy(d.hourly.precipitation[idx],d.hourly.weather_code[idx]) : false };
+  }catch(e){ return { ok:false, now:false, at9:false }; }
+}
 
-        async function applyFactors(rawTotal, rawMorningTotal) {
-            const grandPredictEl = document.getElementById('grand-predict');
-            const totalCountEl = document.getElementById('total-count');
-            const weatherBadge = document.getElementById('weather-badge');
-            const weatherContainer = document.getElementById('weather-badge-container');
-            const fridayContainer = document.getElementById('friday-badge-container');
-            const originalText = document.getElementById('original-predict-text');
-            const grandBase = document.getElementById('grand-base-predict');
-            
-            let isFriday = new Date().getDay() === 5;
-            let currentTotal = rawTotal;
-            let morningTotalCalculated = rawMorningTotal; 
-            
-            if (isFriday) {
-                currentTotal = Math.ceil(rawTotal * 0.85); 
-                morningTotalCalculated = Math.ceil(rawMorningTotal * 0.85); 
-                fridayContainer.style.display = 'block';
-            } else {
-                fridayContainer.style.display = 'none';
-            }
-            
-            totalCountEl.innerText = currentTotal;
+// ---- 趨勢紀錄 ----
+function parseTrend(rows){
+  return rows.map(r=>{
+    const date = normDate(r['日期']);
+    const act = parseInt(r['實際用餐']), cash = parseInt(r['現金付款']||r['現金客']||'0')||0;
+    return { date, sys: parseInt(r['系統預測'])||null, manual: parseInt(r['人工預測'])||null,
+             cash, actual: isNaN(act)?null:act+cash };
+  }).filter(r=>r.date);
+}
+function firstVersionBase(rows, today, dow){
+  if(dow===0||dow===6) return { value:0, basis:'假日' };
+  const same = rows.filter(r=>r.date<today && r.actual>0 && new Date(r.date+'T12:00:00').getDay()===dow).slice(-BASE_LOOKBACK);
+  if(same.length>=4) return { value:Math.round(median(same.map(r=>r.actual))), basis:`近 ${same.length} 次星期${DAY_NAMES[dow]}實際用餐（含現金）中位數` };
+  return { value:FALLBACK_BASE[dow], basis:'固定星期基準量（趨勢資料不足）' };
+}
 
-            try {
-                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=23.9&longitude=120.68&current=weather_code,precipitation&timezone=Asia%2FTaipei');
-                const data = await res.json();
-                const precip = data.current.precipitation;
-                const weatherCode = data.current.weather_code;
-                const isRaining = precip > 0 || weatherCode >= 51;
-                let isModified = isFriday; 
-                
-                if (isRaining) {
-                    currentTotal = Math.ceil(currentTotal * 1.03); 
-                    morningTotalCalculated = Math.ceil(morningTotalCalculated * 1.03); 
-                    weatherContainer.style.display = 'block';
-                    isModified = true;
-                } else {
-                    weatherContainer.style.display = 'none';
-                }
-                
-                grandPredictEl.innerText = currentTotal;
-                if (isModified) {
-                    originalText.style.display = 'block';
-                    grandBase.innerText = rawTotal;
-                } else {
-                    originalText.style.display = 'none';
-                }
-                
-                updateDispatchCenter(currentTotal, morningTotalCalculated);
+// ---- 主流程 ----
+async function refresh(){
+  const now = taipeiNow();
+  const isFriday = now.dow===5, isWeekend = now.dow===0||now.dow===6;
+  const locked = now.hm >= LOCK_TIME;
+  const lockTs = LOCK_TIME+':00';
+  const errors = [];
+  $('today-text').textContent = `${now.date.replace(/-/g,'/')}（${DAY_NAMES[now.dow]}）`;
+  $('last-update').textContent = now.hm;
 
-            } catch (e) {
-                grandPredictEl.innerText = currentTotal;
-                weatherContainer.style.display = 'none';
-                if (isFriday) { originalText.style.display = 'block'; grandBase.innerText = rawTotal; } 
-                else { originalText.style.display = 'none'; }
-                
-                updateDispatchCenter(currentTotal, morningTotalCalculated);
-            }
-        }
+  const [trendRes, predRes, actRes, weather] = await Promise.allSettled([
+    parseCsv(trendUrl), parseCsv(predictUrl), parseCsv(actualUrl), getWeather(now.date)]);
 
-        function updateDispatchCenter(liveSysAmount, morningSysAmount) {
-            const dispatchBaseEl = document.getElementById('dispatch-base');
-            const dispatchBaseDescEl = document.getElementById('dispatch-base-desc');
-            const dispatchFinalEl = document.getElementById('dispatch-final');
-            const dispatchSysEl = document.getElementById('dispatch-sys');
-            const dispatchActionTextEl = document.getElementById('dispatch-action-text');
-            const dispatchTitleEl = document.getElementById('dispatch-final-title');
-            const lockBadgeEl = document.getElementById('lock-badge');
-            const dispatchBadgeEl = document.getElementById('dispatch-call-badge');
+  // 趨勢紀錄
+  if(trendRes.status==='fulfilled'){ trendRows = parseTrend(trendRes.value); } else errors.push('趨勢紀錄');
+  const todayTrend = trendRows.find(r=>r.date===now.date);
+  const todayCash = todayTrend ? todayTrend.cash : 0;
+  const base = firstVersionBase(trendRows, now.date, now.dow);
 
-            let now = new Date();
-            let dayOfWeek = now.getDay();
-            let currentHour = now.getHours();
-            let currentMinute = now.getMinutes();
+  // 天氣：09:20 前用即時天氣，之後固定用 09:00
+  const W = weather.value || {ok:false};
+  const rainNow = W.now, rainUsed = locked ? W.at9 : W.now;
+  const wc = $('weather-chip'); wc.hidden=false;
+  if(!W.ok){ wc.className='chip warn'; wc.textContent='天氣讀取失敗，未套用雨天係數'; }
+  else if(rainUsed){ wc.className='chip info'; wc.textContent=(locked?'09:00 降雨':'目前降雨')+'・×1.03'; }
+  else { wc.className='chip'; wc.textContent=(locked?'09:00 無雨':'目前無雨'); }
+  $('friday-chip').hidden = !isFriday;
 
-            const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-            const baseMap = [0, 132, 128, 119, 126, 108, 0]; 
-            let baseAmount = baseMap[dayOfWeek];
-            let todayStr = dayNames[dayOfWeek];
+  // 今日預測大腦（門禁 × 常客主檔）
+  let regulars = [], latestEntry = '';
+  if(predRes.status==='fulfilled'){
+    predRes.value.forEach(row=>{
+      const entry=(row['EntryTime']||row['進廠時間']||'').trim();
+      const d = normDate(entry);
+      if(d===now.date && entry>latestEntry) latestEntry=entry;
+      if(d && d!==now.date) return;          // 不是今天的資料不算
+      const isReg=(row['是否預測用餐']||row['是否為常客']||'').trim();
+      if(isReg!=='是') return;
+      const card=(row['CardID']||row['卡號']||'').trim().replace(/^0+/,'');
+      regulars.push({ card, comp:row['公司']||'', t:timeOf(entry) });
+    });
+  } else errors.push('門禁預測名單');
 
-            let isPastLockTime = (currentHour > 9) || (currentHour === 9 && currentMinute >= 30);
-            let targetSysAmount = liveSysAmount;
-            
-            if (isPastLockTime) {
-                targetSysAmount = morningSysAmount;
-                lockBadgeEl.style.display = 'inline-block';
-                dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認`;
-                dispatchTitleEl.appendChild(lockBadgeEl);
-                dispatchBadgeEl.classList.remove('bg-success');
-                dispatchBadgeEl.classList.add('bg-danger');
-            } else {
-                targetSysAmount = liveSysAmount;
-                lockBadgeEl.style.display = 'none';
-                dispatchTitleEl.innerHTML = `第二階段：09:30 最終確認 <span class="badge bg-secondary ms-1" style="font-size: 0.75rem; vertical-align: text-bottom;">⏳ 即時浮動中</span>`;
-                dispatchTitleEl.appendChild(lockBadgeEl); 
-                dispatchBadgeEl.classList.remove('bg-danger');
-                dispatchBadgeEl.classList.add('bg-success'); 
-            }
+  // 門禁資料是否還在更新
+  const fc=$('fresh-chip'), ft=$('fresh-text');
+  if(predRes.status!=='fulfilled'){ fc.className='chip err'; ft.textContent='門禁資料讀取失敗'; }
+  else if(!latestEntry){ fc.className='chip '+(isWeekend||now.hm<'07:30'?'':'warn'); ft.textContent='今天還沒有門禁資料'; }
+  else{
+    const lt=timeOf(latestEntry).slice(0,5);
+    const ago=toMin(now.hm)-toMin(lt);
+    const stale = ago>STALE_MINUTES && now.hm>'07:40' && now.hm<'09:30';   // 只在早上進園尖峰檢查
+    fc.className='chip '+(stale?'err':'ok');
+    ft.textContent=`門禁最後一筆 ${lt}`+(stale?`・已 ${ago} 分鐘沒有更新`:'');
+  }
 
-            let finalAmount = targetSysAmount + 20;
-            let addAmount = finalAmount - baseAmount;
+  // 計算：09:20 前即時；09:20 後固定用 09:20 前進園的常客 + 09:00 天氣，不再變動
+  const beforeLock = regulars.filter(r=>r.t && r.t <= lockTs).length;
+  const allDay = regulars.length;
+  const counted = locked ? beforeLock : allDay;
+  const dispatch = applyFactors(counted, isFriday, rainUsed) + LATE_BUFFER;
+  const grand = applyFactors(allDay, isFriday, rainNow);
 
-            if (baseAmount > 0) {
-                dispatchBaseEl.innerHTML = `${baseAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
-                dispatchBaseDescEl.innerText = `(早盤預估量)`;
-            } else {
-                dispatchBaseEl.innerHTML = `--`;
-                dispatchBaseDescEl.innerText = `(假日無預估量)`;
-            }
+  $('h-label').textContent = locked ? '09:20 最終派單量' : '派單量即時推算（09:20 鎖定）';
+  $('h-num').innerHTML = (isWeekend && !allDay ? '--' : dispatch) + '<small>份</small>';
+  const st=$('h-state'); st.className='pill '+(locked?'lock':'live'); st.textContent = locked?'已鎖定，不再變動':'隨進園人數即時變動';
+  $('h-calc').innerHTML = [
+    [locked?'09:20 前已到常客':'目前已到常客', counted],
+    isFriday?['× 週五', FRIDAY_FACTOR]:null,
+    rainUsed?['× 雨天', RAIN_FACTOR]:null,
+    ['+ 晚到與現金', LATE_BUFFER]
+  ].filter(Boolean).map(c=>`<span class="tok">${c[0]} <b>${c[1]}</b></span>`).join('<span class="op">→</span>')
+   + `<span class="op">=</span><span class="tok"><b>${dispatch}</b> 份</span>`;
+  $('base-num').textContent = base.value || '--';
+  $('base-basis').textContent = base.basis;
+  $('grand-predict').textContent = grand;
+  const delta = dispatch - base.value, dp=$('h-delta');
+  if(base.value){ dp.hidden=false; dp.className='pill '+(delta>0?'up':delta<0?'down':'same');
+    dp.textContent = delta>0?`比第一版多 ${delta} 份`:delta<0?`比第一版少 ${-delta} 份`:'與第一版相同'; } else dp.hidden=true;
 
-            dispatchFinalEl.innerHTML = `${finalAmount} <span style="font-size: 1.2rem;" class="text-white-50">份</span>`;
-            dispatchSysEl.innerText = targetSysAmount;
+  // LINE 訊息
+  const md = `${Number(now.date.slice(5,7))}/${Number(now.date.slice(8,10))}`;
+  $('msg1').textContent = base.value
+    ? `老闆早，今天（${md} 星期${DAY_NAMES[now.dow]}）中創園區預估 ${base.value} 份，09:20 會再跟您確認追加或減量，謝謝！`
+    : '今天是假日，沒有第一版預估量。';
+  let m2;
+  if(!base.value) m2 = `老闆早，今天總共需要 ${dispatch} 份，謝謝！`;
+  else if(delta>0) m2 = `老闆早，除了早上預估的 ${base.value} 份外，請幫我追加 ${delta} 份放補菜桶，今日總計 ${dispatch} 份，謝謝！`;
+  else if(delta===0) m2 = `老闆早，今天維持早上預估的 ${base.value} 份，無須追加，謝謝！`;
+  else m2 = `老闆早，今天園區人數較少，早上預估的 ${base.value} 份能否減少 ${-delta} 份？今日總計改為 ${dispatch} 份，謝謝！`;
+  $('msg2').textContent = m2;
+  $('msg2-state').textContent = locked ? '已鎖定' : '09:20 前仍會變動';
 
-            if (baseAmount === 0) {
-                 dispatchActionTextEl.innerHTML = `「老闆早，今天是假日，今日總共需要 <b>${finalAmount} 份</b>，謝謝！」`;
-            } else if (addAmount > 0) {
-                dispatchActionTextEl.innerHTML = `「老闆早，除了早上預估的 <b>${baseAmount} 份</b> 外，請幫我 <span class="text-warning fw-bold">追加 ${addAmount} 份放補菜桶</span>，今日總計為 <b>${finalAmount} 份</b>，謝謝！」`;
-            } else if (addAmount === 0) {
-                dispatchActionTextEl.innerHTML = `「老闆早，今天維持早上預估的 <b>${baseAmount} 份</b>，無須追加，謝謝！」`;
-            } else {
-                dispatchActionTextEl.innerHTML = `「老闆早，今天園區人數較少，請問早上預估的數量能否 <span class="text-danger fw-bold">減少 ${Math.abs(addAmount)} 份</span>？今日總計改為 <b>${finalAmount} 份</b>，謝謝！」`;
-            }
-        }
+  // 實際刷卡比對
+  let swipes = [];
+  if(actRes.status==='fulfilled'){
+    actRes.value.forEach(r=>{
+      const d=normDate(r['Date']||r['日期']||'');
+      const cid=(r['CardID']||'').trim().replace(/^0+/,'');
+      if(cid.length>3 && (!d || d===now.date)) swipes.push(cid);
+    });
+  } else errors.push('實際用餐紀錄');
+  const hasActual = swipes.length>0;
+  const pool = new Map(); swipes.forEach(c=>pool.set(c,(pool.get(c)||0)+1));
+  const comps = { '環電':{arr:0,pre:0,hit:0}, '工研院':{arr:0,pre:0,hit:0}, '其他廠商':{arr:0,pre:0,hit:0} };
+  let hit=0;
+  regulars.forEach(r=>{
+    const k = r.comp.includes('環電')?'環電':r.comp.includes('工研院')?'工研院':'其他廠商';
+    comps[k].arr++; if(r.t && r.t<=lockTs) comps[k].pre++;
+    if(pool.get(r.card)>0){ pool.set(r.card,pool.get(r.card)-1); comps[k].hit++; hit++; }
+  });
+  $('settle').hidden = !hasActual;
+  if(hasActual){
+    const total = swipes.length + todayCash, diff = dispatch-total;
+    $('actual-total').textContent = total;
+    $('actual-breakdown').textContent = `（刷卡 ${swipes.length}${todayCash?`＋現金 ${todayCash}`:''}；派單 ${dispatch}，${diff>=0?'多':'少'} ${Math.abs(diff)} 份）`;
+    $('k-hit').textContent = hit; $('k-miss').textContent = allDay-hit; $('k-extra').textContent = swipes.length-hit;
+  }
+  const rows = Object.entries(comps);
+  const sum = rows.reduce((a,[,v])=>({arr:a.arr+v.arr,pre:a.pre+v.pre,hit:a.hit+v.hit}),{arr:0,pre:0,hit:0});
+  const rate = v => hasActual && v.arr ? Math.round(v.hit/v.arr*100)+'%' : '—';
+  $('comp-table').innerHTML = `<tr><th>公司</th><th class="r">09:20 前到</th><th class="r">全天到</th><th class="r">命中</th><th class="r">命中率</th></tr>`
+    + rows.map(([k,v])=>`<tr><td>${k}</td><td class="r">${v.pre}</td><td class="r">${v.arr}</td><td class="r">${hasActual?v.hit:'—'}</td><td class="r">${rate(v)}</td></tr>`).join('')
+    + `<tr class="total"><td>合計</td><td class="r">${sum.pre}</td><td class="r">${sum.arr}</td><td class="r">${hasActual?sum.hit:'—'}</td><td class="r">${rate(sum)}</td></tr>`;
 
-        function loadPredictAndCompare(nocache) {
-            Papa.parse(predictUrl + nocache, {
-                download: true,
-                header: true,
-                complete: function(predictResults) {
-                    let total = 0, usi = 0, itri = 0, cash = 0;
-                    let morningTotal = 0; 
-                    let predictedList = []; 
-                    
-                    document.getElementById('last-update').innerText = '最後更新：' + new Date().toLocaleString();
+  // 今日進度
+  const stage = hasActual ? 4 : locked ? 3 : now.hm>='08:30' ? 2 : 1;
+  ['st1','st2','st3','st4'].forEach((id,i)=>{ $(id).className='step'+(i+1<stage?' done':'')+(i+1===stage?' now':''); });
 
-                    predictResults.data.forEach(row => {
-                        const cardid_raw = row['卡號'] || row['CardID'] || ''; 
-                        const cidClean = cardid_raw.trim().replace(/^0+/, '');
-                        const entryTime = (row['EntryTime'] || row['進廠時間'] || '').trim();
-                        
-                        let arrivedAfter930 = false;
-                        
-                        const isRegular = row['是否預測用餐'] || row['是否為常客'];
-                        if (isRegular === '是') {
-                            const comp = row['公司'] || '未知';
-                            // 純資料運算，不再抓取姓名
-                            predictedList.push({ cardid: cidClean, comp: comp });
-                            
-                            total++; 
-                            if (comp.includes('環電')) { usi++; } 
-                            else if (comp.includes('工研院')) { itri++; } 
-                            else { cash++; } 
+  // 讀取失敗提示
+  const eb=$('error-banner');
+  eb.className='banner'+(errors.length?' show':'');
+  eb.textContent = errors.length ? `讀不到：${errors.join('、')}。數字可能不完整，請確認 Google 試算表仍有「發佈到網路」。` : '';
 
-                            if (entryTime !== '') {
-                                let timePart = entryTime.split(' ').length > 1 ? entryTime.split(' ')[1] : entryTime;
-                                if (timePart >= '09:30:00') {
-                                    arrivedAfter930 = true; 
-                                }
-                            }
+  drawArrival(regulars, now);
+  drawTrend();
+}
 
-                            if (!arrivedAfter930) {
-                                morningTotal++; 
-                            }
-                        }
-                    });
-                    
-                    document.getElementById('usi-count').innerText = usi;
-                    document.getElementById('itri-count').innerText = itri; 
-                    document.getElementById('cash-count').innerText = cash; 
+// ---- 今天常客進園曲線 ----
+function drawArrival(regulars, now){
+  const labels=[], data=[];
+  const times = regulars.map(r=>r.t).filter(Boolean).sort();
+  const nowMin = toMin(now.hm), endMin = Math.min(Math.max(nowMin, 9*60+30), 12*60);
+  for(let m=6*60; m<=endMin; m+=10){
+    const hm = fromMin(m); labels.push(hm);
+    data.push(m<=nowMin ? times.filter(t=>t.slice(0,5)<=hm).length : null);
+  }
+  if(arrivalChart) arrivalChart.destroy();
+  arrivalChart = new Chart($('arrivalChart'),{type:'line',
+    data:{labels,datasets:[{label:'已到常客',data,borderColor:cssVar('--accent'),backgroundColor:cssVar('--accent-bg'),fill:true,tension:.3,pointRadius:0,borderWidth:3}]},
+    options:{maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:cssVar('--mute'),maxTicksLimit:8},grid:{color:cssVar('--line')}},
+              y:{beginAtZero:true,ticks:{color:cssVar('--mute')},grid:{color:cssVar('--line')}}}},
+    plugins:[{id:'marks',afterDraw(c){const xs=c.scales.x, ys=c.scales.y, g=c.ctx;
+      ['08:20','09:20'].forEach(t=>{const i=labels.indexOf(t); if(i<0) return; const x=xs.getPixelForValue(i);
+        g.save(); g.strokeStyle=cssVar('--ghost'); g.setLineDash([4,4]); g.beginPath(); g.moveTo(x,ys.top); g.lineTo(x,ys.bottom); g.stroke();
+        g.fillStyle=cssVar('--mute'); g.font='11px sans-serif'; g.fillText(t,x+4,ys.top+12); g.restore();});}}]});
+}
 
-                    applyFactors(total, morningTotal);
-                    fetchActualData(predictedList, nocache);
-                }
-            });
-        }
+// ---- 趨勢圖與準確度 ----
+function drawTrend(){
+  const done = trendRows.filter(r=>r.sys && r.actual);
+  const err = done.slice(-20).map(r=>r.sys-r.actual);
+  if(err.length){
+    const mae = err.reduce((a,b)=>a+Math.abs(b),0)/err.length, bias = err.reduce((a,b)=>a+b,0)/err.length;
+    $('acc-mae').textContent = mae.toFixed(1);
+    $('acc-within').textContent = `${err.filter(e=>Math.abs(e)<=10).length}/${err.length}`;
+    $('acc-bias').textContent = (bias>0?'+':'')+bias.toFixed(1);
+    $('acc-bias').style.color = Math.abs(bias)<1 ? '' : bias>0 ? cssVar('--accent') : cssVar('--blue');
+    $('acc-bias-k').textContent = '平均偏差（' + (bias>0?'預測偏多':bias<0?'預測偏少':'持平') + '）';
+  }
+  const all = trendRows.filter(r=>r.sys||r.actual);
+  const rows = trendRange ? all.slice(-trendRange) : all;
+  const labels = rows.map(r=>`${Number(r.date.slice(5,7))}/${Number(r.date.slice(8,10))}`);
+  const ds = [
+    {type:'line',label:'實際用餐（刷卡＋現金）',data:rows.map(r=>r.actual),borderColor:cssVar('--blue'),backgroundColor:cssVar('--blue'),borderWidth:3,pointRadius:2,tension:.25,yAxisID:'y'},
+    {type:'line',label:'系統預測',data:rows.map(r=>r.sys),borderColor:cssVar('--accent'),backgroundColor:cssVar('--accent'),borderDash:[6,4],borderWidth:2,pointRadius:0,tension:.25,yAxisID:'y'},
+    {type:'bar',label:'現金客',data:rows.map(r=>r.actual!=null?r.cash:null),backgroundColor:cssVar('--ghost'),borderRadius:3,yAxisID:'yCash'}
+  ];
+  if(rows.some(r=>r.manual)) ds.splice(2,0,{type:'line',label:'人工預測',data:rows.map(r=>r.manual),borderColor:cssVar('--mute'),borderDash:[2,4],borderWidth:2,pointRadius:0,spanGaps:false,yAxisID:'y'});
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart($('trendChart'),{data:{labels,datasets:ds},
+    options:{maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:cssVar('--fg'),boxWidth:14}}},
+      scales:{x:{ticks:{color:cssVar('--mute'),maxTicksLimit:12},grid:{display:false}},
+              y:{grace:'5%',ticks:{color:cssVar('--mute')},grid:{color:cssVar('--line')}},
+              yCash:{position:'right',min:0,max:60,display:false}}}});
+}
 
-        function fetchActualData(predictedList, nocache) {
-            Papa.parse(actualUrl + nocache, {
-                download: true,
-                header: true,
-                complete: function(actualResults) {
-                    let allActualSwipes = []; 
-                    actualResults.data.forEach(row => {
-                        let cid = (row['CardID'] || '').trim().replace(/^0+/, '');
-                        if (cid && cid.length > 3) allActualSwipes.push({ cid: cid });
-                    });
+document.querySelectorAll('[data-range]').forEach(b=>b.addEventListener('click',()=>{
+  trendRange = Number(b.dataset.range);
+  document.querySelectorAll('[data-range]').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  drawTrend();
+}));
+document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>{
+  const id=b.dataset.copy, text=$(id).textContent, toast=$('toast-'+id);
+  const fallback=()=>{ const r=document.createRange(); r.selectNodeContents($(id)); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+    toast.textContent='已選取文字，請按 Ctrl+C 複製'; };
+  if(navigator.clipboard) navigator.clipboard.writeText(text).then(()=>{ toast.textContent='已複製，到 LINE 群組貼上即可'; }).catch(fallback);
+  else fallback();
+  setTimeout(()=>{ toast.textContent=''; }, 4000);
+}));
 
-                    let swipeTotal = allActualSwipes.length;
-                    let finalActualSold = swipeTotal + globalTodayCash;
-
-                    if (finalActualSold === 0) {
-                        document.getElementById('grand-actual').innerText = "--";
-                        document.getElementById('actual-breakdown-text').style.display = 'none';
-                        return; 
-                    }
-
-                    document.getElementById('grand-actual').innerText = finalActualSold;
-                    
-                    if (globalTodayCash > 0) {
-                        document.getElementById('actual-breakdown-text').style.display = 'block';
-                        document.getElementById('actual-card-count').innerText = swipeTotal;
-                        document.getElementById('actual-cash-addon').innerText = globalTodayCash;
-                    } else {
-                        document.getElementById('actual-breakdown-text').style.display = 'none';
-                    }
-
-                    let hitTotal = 0, hitUsi = 0, hitItri = 0, hitCash = 0; 
-                    let swipePool = [...allActualSwipes];
-
-                    // 純數學命中計算，不再渲染失準表格
-                    predictedList.forEach(p => {
-                        let matchIndex = swipePool.findIndex(s => s.cid === p.cardid);
-                        if (matchIndex !== -1) {
-                            hitTotal++; 
-                            if (p.comp.includes('環電')) hitUsi++; 
-                            else if (p.comp.includes('工研院')) hitItri++; 
-                            else hitCash++; 
-                            swipePool.splice(matchIndex, 1);
-                        }
-                    });
-
-                    let totalPredWithCard = predictedList.length;
-                    const calcAcc = (hit, pred) => pred > 0 ? Math.round((hit / pred) * 100) : 0;
-                    
-                    showAcc('total', calcAcc(hitTotal, totalPredWithCard), hitTotal); 
-                    showAcc('usi', calcAcc(hitUsi, predictedList.filter(p => p.comp.includes('環電')).length), hitUsi);
-                    showAcc('itri', calcAcc(hitItri, predictedList.filter(p => p.comp.includes('工研院')).length), hitItri); 
-                    showAcc('cash', calcAcc(hitCash, predictedList.filter(p => !p.comp.includes('環電') && !p.comp.includes('工研院')).length), hitCash); 
-                }
-            });
-        }
-
-        function showAcc(id, acc, hit) { 
-            const b = document.getElementById(`acc-${id}`); 
-            if (!b) return;
-            b.style.display = 'block'; 
-            b.innerText = `準確率 ${acc}%`; 
-            if (acc >= 90) { b.style.backgroundColor = 'rgba(16, 185, 129, 0.9)'; }
-            else if (acc >= 70) { b.style.backgroundColor = 'rgba(245, 158, 11, 0.9)'; }
-            else { b.style.backgroundColor = 'rgba(239, 68, 68, 0.9)'; }
-            const textEl = document.getElementById(`actual-${id}-text`);
-            if (textEl) {
-                textEl.style.display = 'block'; 
-                textEl.querySelector('span').innerText = hit;
-            }
-        }
-        
-        initSystem();
-        setInterval(initSystem, 60000); 
-    </script>
+refresh();
+setInterval(refresh, 60000);
+</script>
 </body>
 </html>
