@@ -333,8 +333,10 @@ async function refresh(){
   const grand = applyFactors(allDay, isFriday, rainNow);
 
   $('h-label').textContent = locked ? '09:20 最終派單量' : '派單量即時推算（09:20 鎖定）';
-  $('h-num').innerHTML = (isWeekend && !allDay ? '--' : dispatch) + '<small>份</small>';
-  const st=$('h-state'); st.className='pill '+(locked?'lock':'live'); st.textContent = locked?'已鎖定，不再變動':'隨進園人數即時變動';
+  const noData = counted===0;   // 清晨或假日還沒有常客進園，不要顯示成「要減量」
+  $('h-num').innerHTML = (noData ? '--' : dispatch) + '<small>份</small>';
+  const st=$('h-state'); st.className='pill '+(locked?'lock':'live');
+  st.textContent = noData ? '等待常客進園資料' : locked?'已鎖定，不再變動':'隨進園人數即時變動';
   $('h-calc').innerHTML = [
     [locked?'09:20 前已到常客':'目前已到常客', counted],
     isFriday?['× 週五', FRIDAY_FACTOR]:null,
@@ -346,7 +348,7 @@ async function refresh(){
   $('base-basis').textContent = base.basis;
   $('grand-predict').textContent = grand;
   const delta = dispatch - base.value, dp=$('h-delta');
-  if(base.value){ dp.hidden=false; dp.className='pill '+(delta>0?'up':delta<0?'down':'same');
+  if(base.value && !noData){ dp.hidden=false; dp.className='pill '+(delta>0?'up':delta<0?'down':'same');
     dp.textContent = delta>0?`比第一版多 ${delta} 份`:delta<0?`比第一版少 ${-delta} 份`:'與第一版相同'; } else dp.hidden=true;
 
   // LINE 訊息
@@ -356,7 +358,8 @@ async function refresh(){
   const d2 = dispatch - sentPeople, final2 = sentTotal + d2;
   let m2;
   const head = `【${md}（${DAY_NAMES[now.dow]}）中創園區 09:20 確認】`;
-  if(!sentPeople) m2 = `${head}今日最終 ${dispatch} 份，謝謝！`;
+  if(noData) m2 = '今天還沒有常客進園資料，進園後會自動算出追加／減量。';
+  else if(!sentPeople) m2 = `${head}今日最終 ${dispatch} 份，謝謝！`;
   else if(d2>0) m2 = `${head}追加 ${d2} 份，放補菜桶，其餘照早上明細。今日最終 ${final2} 份，謝謝！`;
   else if(d2===0) m2 = `${head}維持早上明細 ${sentTotal} 份，不追加，謝謝！`;
   else m2 = `${head}今天入園人數較少，早上明細減少 ${-d2} 份（從桶餐扣），今日最終 ${final2} 份，謝謝！`;
