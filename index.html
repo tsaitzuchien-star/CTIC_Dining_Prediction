@@ -120,7 +120,7 @@ tr.total td{border-bottom:none;font-weight:700}
 
   <nav class="steps" aria-label="今日進度">
     <div class="step" id="st1"><span class="t">08:30</span><span class="n">第一版報團膳</span><span class="s">依近期同星期實際用餐</span></div>
-    <div class="step" id="st2"><span class="t">09:20</span><span class="n">最終追加 / 減量</span><span class="s">09:20 後數字鎖定</span></div>
+    <div class="step" id="st2"><span class="t">09:20</span><span class="n">預測校對</span><span class="s">對照早上送出份數</span></div>
     <div class="step" id="st3"><span class="t">13:15</span><span class="n">卡機結算</span><span class="s">比對刷卡、命中、放鳥</span></div>
     <div class="step" id="st4"><span class="t">14:35</span><span class="n">分帳完成</span><span class="s">院部扣款、廠商入帳</span></div>
   </nav>
@@ -152,10 +152,8 @@ tr.total td{border-bottom:none;font-weight:700}
         <span class="toast" id="toast-msg1" aria-live="polite"></span>
       </div>
       <div class="msg">
-        <div class="to"><span>09:20 追加 / 減量・只傳這則短訊，不用重貼明細</span><span id="msg2-state"></span></div>
+        <div class="to"><span>今天送出 vs 進園推估・團膳只收早上一版，僅供參考</span><span id="msg2-state"></span></div>
         <div class="body" id="msg2">--</div>
-        <button class="btn" type="button" data-copy="msg2">複製</button>
-        <span class="toast" id="toast-msg2" aria-live="polite"></span>
       </div>
     </div>
   </section>
@@ -354,17 +352,17 @@ async function refresh(){
   // LINE 訊息
   const md = `${Number(now.date.slice(5,7))}/${Number(now.date.slice(8,10))}`;
   $('msg1').textContent = base.value ? String(base.value) : '今天是假日，沒有第一版預估量。';
-  const sentPeople = sent ? sent.people : base.value, sentTotal = sent ? sent.total : base.value;
-  const d2 = dispatch - sentPeople, final2 = sentTotal + d2;
+  // 團膳只收早上一版（2026-11-04 起不再傳 09:20 追加／減量），這裡只對照早上送出的份數，累積經驗用
   let m2;
-  const head = `【${md}（${DAY_NAMES[now.dow]}）中創園區 09:20 確認】`;
-  if(noData) m2 = '今天還沒有常客進園資料，進園後會自動算出追加／減量。';
-  else if(!sentPeople) m2 = `${head}今日最終 ${dispatch} 份，謝謝！`;
-  else if(d2>0) m2 = `${head}追加 ${d2} 份，放補菜桶，其餘照早上明細。今日最終 ${final2} 份，謝謝！`;
-  else if(d2===0) m2 = `${head}維持早上明細 ${sentTotal} 份，不追加，謝謝！`;
-  else m2 = `${head}今天入園人數較少，早上明細減少 ${-d2} 份（從桶餐扣），今日最終 ${final2} 份，謝謝！`;
+  if(!sent) m2 = '訂餐 App 今天還沒記錄送出份數。';
+  else if(noData) m2 = `今天送出 ${sent.total} 份，還沒有常客進園資料。`;
+  else {
+    const d2 = dispatch - sent.people;
+    m2 = `今天送出 ${sent.people} 人份（總訂 ${sent.total} 份含換菜）；依進園推估 ${dispatch} 人，`
+       + (d2>0 ? `可能不夠 ${d2} 份` : d2<0 ? `可能多 ${-d2} 份` : '剛好') + '。';
+  }
   $('msg2').textContent = m2;
-  $('msg2-state').textContent = (locked ? '已鎖定' : '09:20 前仍會變動') + (sent ? `・依 App 送出 ${sent.total} 份計算` : '・App 尚未記錄送出份數，先以第一版計算');
+  $('msg2-state').textContent = locked ? '・09:20 已鎖定' : '・09:20 前隨進園人數變動';
 
   // 實際刷卡比對
   let swipes = [];
