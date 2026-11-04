@@ -133,7 +133,7 @@ tr.total td{border-bottom:none;font-weight:700}
       <div class="calc" id="h-calc"></div>
       <div class="mini">
         <div class="kpi"><div class="k">08:30 第一版</div><div class="v" id="base-num">--</div><div class="k" id="base-basis">--</div></div>
-        <div class="kpi"><div class="k">今日預測總量（全天已到常客 × 係數）</div><div class="v" id="grand-predict">--</div><div class="k">不含 +20，即趨勢紀錄的「系統預測」</div></div>
+        <div class="kpi"><div class="k">今日預測總量（全天已到常客 × 全日出席率）</div><div class="v" id="grand-predict">--</div><div class="k" id="calib-note">即趨勢紀錄的「系統預測」</div></div>
       </div>
       <div id="settle" hidden>
         <div class="label" style="margin:6px 0">今日實際用餐 <b class="num" id="actual-total" style="font-size:20px;color:var(--fg)">--</b> 份 <span id="actual-breakdown"></span></div>
@@ -196,7 +196,8 @@ const orderUrl   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjS
 // ===== 參數（與 ctic_daily_record.py 一致）=====
 const FRIDAY_FACTOR = 0.85;
 const RAIN_FACTOR = 1.03;
-const LATE_BUFFER = 20;                 // 09:20 後晚到常客、非常客、現金客的補償
+const CALIB_DEFAULT = { n0920:1.06, nAll:0.90 };   // 出席率預設（11/3、11/4 實測），資料夠了會自動校正
+const CALIB_DAYS = 10, CALIB_MIN = 3;
 const LOCK_TIME = '09:20';              // 回報團膳的時間，之後數字鎖定
 const LOCK_WEATHER_HOUR = 9;            // 鎖定後一律用 09:00 的天氣，之後下雨也不會改變
 const FALLBACK_BASE = [0, 132, 128, 119, 126, 108, 0];  // 趨勢紀錄資料不足時的星期基準量
@@ -254,8 +255,18 @@ function parseTrend(rows){
     const date = normDate(r['日期']);
     const act = parseInt(r['實際用餐']), cash = parseInt(r['現金付款']||r['現金客']||'0')||0;
     return { date, sys: parseInt(r['系統預測'])||null, manual: parseInt(r['人工預測'])||null,
-             cash, actual: isNaN(act)?null:act+cash };
+             cash, actual: isNaN(act)?null:act+cash,
+             n0920: parseInt(r['09:20已到常客'])||0, nAll: parseInt(r['全日已到常客'])||0 };
   }).filter(r=>r.date);
+}
+// 出席率係數（與 ctic_daily_record.py calibration 相同）：最近 10 個非週五工作日 實際用餐÷已到常客 的中位數
+function calibration(rows, today){
+  const pick = key => {
+    const v = rows.filter(r=>r.date<today && r.actual>0 && r[key]>0 && new Date(r.date+'T12:00:00').getDay()!==5)
+                  .slice(-CALIB_DAYS).map(r=>r.actual/r[key]);
+    return v.length>=CALIB_MIN ? { v:median(v), n:v.length } : { v:CALIB_DEFAULT[key], n:0 };
+  };
+  return { r0920:pick('n0920'), rAll:pick('nAll') };
 }
 function firstVersionBase(rows, today, dow){
   if(dow===0||dow===6) return { value:0, basis:'假日' };
@@ -327,8 +338,11 @@ async function refresh(){
   const beforeLock = regulars.filter(r=>r.t && r.t <= lockTs).length;
   const allDay = regulars.length;
   const counted = locked ? beforeLock : allDay;
-  const dispatch = applyFactors(counted, isFriday, rainUsed) + LATE_BUFFER;
-  const grand = applyFactors(allDay, isFriday, rainNow);
+  const cal = calibration(trendRows, now.date);
+  // 09:20 前：依目前已到常客 × 09:20 出席率推估全天；09:20 後固定用 09:20 前到的人數
+  const ratio = cal.r0920.v;
+  const dispatch = counted ? applyFactors(Math.ceil(counted*ratio), isFriday, rainUsed) : 0;
+  const grand = allDay ? applyFactors(Math.ceil(allDay*cal.rAll.v), isFriday, rainNow) : 0;
 
   $('h-label').textContent = locked ? '09:20 最終派單量' : '派單量即時推算（09:20 鎖定）';
   const noData = counted===0;   // 清晨或假日還沒有常客進園，不要顯示成「要減量」
@@ -337,14 +351,16 @@ async function refresh(){
   st.textContent = noData ? '等待常客進園資料' : locked?'已鎖定，不再變動':'隨進園人數即時變動';
   $('h-calc').innerHTML = [
     [locked?'09:20 前已到常客':'目前已到常客', counted],
+    ['× 出席率', ratio.toFixed(2)],
     isFriday?['× 週五', FRIDAY_FACTOR]:null,
-    rainUsed?['× 雨天', RAIN_FACTOR]:null,
-    ['+ 晚到與現金', LATE_BUFFER]
+    rainUsed?['× 雨天', RAIN_FACTOR]:null
   ].filter(Boolean).map(c=>`<span class="tok">${c[0]} <b>${c[1]}</b></span>`).join('<span class="op">→</span>')
    + `<span class="op">=</span><span class="tok"><b>${dispatch}</b> 份</span>`;
   $('base-num').textContent = base.value || '--';
   $('base-basis').textContent = base.basis;
-  $('grand-predict').textContent = grand;
+  $('grand-predict').textContent = grand || '--';
+  $('calib-note').textContent = `出席率 09:20×${cal.r0920.v.toFixed(2)}・全日×${cal.rAll.v.toFixed(2)}`
+    + (cal.rAll.n ? `（依最近 ${cal.rAll.n} 個工作日自動校正）` : '（資料累積中，先用預設值）');
   const delta = dispatch - base.value, dp=$('h-delta');
   if(base.value && !noData){ dp.hidden=false; dp.className='pill '+(delta>0?'up':delta<0?'down':'same');
     dp.textContent = delta>0?`比第一版多 ${delta} 份`:delta<0?`比第一版少 ${-delta} 份`:'與第一版相同'; } else dp.hidden=true;
