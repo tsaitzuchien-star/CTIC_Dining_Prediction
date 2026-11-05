@@ -151,10 +151,6 @@ tr.total td{border-bottom:none;font-weight:700}
         <button class="btn" type="button" data-copy="msg1">複製</button>
         <span class="toast" id="toast-msg1" aria-live="polite"></span>
       </div>
-      <div class="msg">
-        <div class="to"><span>今天送出 vs 進園推估・團膳只收早上一版，僅供參考</span><span id="msg2-state"></span></div>
-        <div class="body" id="msg2">--</div>
-      </div>
     </div>
   </section>
 
@@ -196,7 +192,7 @@ const orderUrl   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjS
 // ===== 參數（與 ctic_daily_record.py 一致）=====
 const FRIDAY_FACTOR = 0.85;
 const RAIN_FACTOR = 1.03;
-const CALIB_DEFAULT = { n0920:1.06, nAll:0.90 };   // 出席率預設（11/3、11/4 實測），資料夠了會自動校正
+const CALIB_DEFAULT = { n0820:2.6, n0920:1.06, nAll:0.90 };   // 出席率預設（11/3、11/4 實測），資料夠了會自動校正
 const CALIB_DAYS = 10, CALIB_MIN = 3;
 const LOCK_TIME = '09:20';              // 回報團膳的時間，之後數字鎖定
 const LOCK_WEATHER_HOUR = 9;            // 鎖定後一律用 09:00 的天氣，之後下雨也不會改變
@@ -256,7 +252,7 @@ function parseTrend(rows){
     const act = parseInt(r['實際用餐']), cash = parseInt(r['現金付款']||r['現金客']||'0')||0;
     return { date, sys: parseInt(r['系統預測'])||null, manual: parseInt(r['人工預測'])||null,
              cash, actual: isNaN(act)?null:act+cash,
-             n0920: parseInt(r['09:20已到常客'])||0, nAll: parseInt(r['全日已到常客'])||0 };
+             n0820: parseInt(r['08:20已到常客'])||0, n0920: parseInt(r['09:20已到常客'])||0, nAll: parseInt(r['全日已到常客'])||0 };
   }).filter(r=>r.date);
 }
 // 出席率係數（與 ctic_daily_record.py calibration 相同）：最近 10 個非週五工作日 實際用餐÷已到常客 的中位數
@@ -266,7 +262,10 @@ function calibration(rows, today){
                   .slice(-CALIB_DAYS).map(r=>r.actual/r[key]);
     return v.length>=CALIB_MIN ? { v:median(v), n:v.length } : { v:CALIB_DEFAULT[key], n:0 };
   };
-  return { r0920:pick('n0920'), rAll:pick('nAll') };
+  return { r0820:pick('n0820'), r0920:pick('n0920'), rAll:pick('nAll') };
+}
+function hasActualToday(actRes, today){
+  return actRes.status==='fulfilled' && actRes.value.some(r=>{ const d=normDate(r['Date']||r['日期']||''); return !d || d===today; });
 }
 function firstVersionBase(rows, today, dow){
   if(dow===0||dow===6) return { value:0, basis:'假日' };
@@ -339,17 +338,19 @@ async function refresh(){
   const allDay = regulars.length;
   const counted = locked ? beforeLock : allDay;
   const cal = calibration(trendRows, now.date);
-  // 09:20 前：依目前已到常客 × 09:20 出席率推估全天；09:20 後固定用 09:20 前到的人數
-  const ratio = cal.r0920.v;
-  const dispatch = counted ? applyFactors(Math.ceil(counted*ratio), isFriday, rainUsed) : 0;
+  // 08:20 前人太少不推估；08:20～09:20 出席率從 08:20 的值依時間漸變到 09:20 的值；09:20 後固定用 09:20 前到的人數
+  const early = !locked && now.hm < '08:20';
+  const w = locked ? 1 : Math.min(1, Math.max(0, (toMin(now.hm) - toMin('08:20')) / 60));
+  const ratio = cal.r0820.v + (cal.r0920.v - cal.r0820.v) * w;
+  const dispatch = counted && !early ? applyFactors(Math.ceil(counted*ratio), isFriday, rainUsed) : 0;
   const grand = allDay ? applyFactors(Math.ceil(allDay*cal.rAll.v), isFriday, rainNow) : 0;
 
   $('h-label').textContent = locked ? '09:20 最終派單量' : '派單量即時推算（09:20 鎖定）';
-  const noData = counted===0;   // 清晨或假日還沒有常客進園，不要顯示成「要減量」
+  const noData = counted===0 || early;   // 清晨、08:20 前或假日，不要顯示成「要減量」
   $('h-num').innerHTML = (noData ? '--' : dispatch) + '<small>份</small>';
   const st=$('h-state'); st.className='pill '+(locked?'lock':'live');
-  st.textContent = noData ? '等待常客進園資料' : locked?'已鎖定，不再變動':'隨進園人數即時變動';
-  $('h-calc').innerHTML = [
+  st.textContent = early ? `08:20 後開始推估（目前已到常客 ${counted}）` : noData ? '等待常客進園資料' : locked?'已鎖定，不再變動':'隨進園人數即時變動';
+  $('h-calc').innerHTML = noData ? '' : [
     [locked?'09:20 前已到常客':'目前已到常客', counted],
     ['× 出席率', ratio.toFixed(2)],
     isFriday?['× 週五', FRIDAY_FACTOR]:null,
@@ -358,7 +359,7 @@ async function refresh(){
    + `<span class="op">=</span><span class="tok"><b>${dispatch}</b> 份</span>`;
   $('base-num').textContent = base.value || '--';
   $('base-basis').textContent = base.basis;
-  $('grand-predict').textContent = grand || '--';
+  $('grand-predict').textContent = (now.hm >= '11:00' || hasActualToday(actRes, now.date)) && grand ? grand : '--';   // 中午前常客還在陸續進園
   $('calib-note').textContent = `出席率 09:20×${cal.r0920.v.toFixed(2)}・全日×${cal.rAll.v.toFixed(2)}`
     + (cal.rAll.n ? `（依最近 ${cal.rAll.n} 個工作日自動校正）` : '（資料累積中，先用預設值）');
   const delta = dispatch - base.value, dp=$('h-delta');
@@ -368,17 +369,7 @@ async function refresh(){
   // LINE 訊息
   const md = `${Number(now.date.slice(5,7))}/${Number(now.date.slice(8,10))}`;
   $('msg1').textContent = base.value ? String(base.value) : '今天是假日，沒有第一版預估量。';
-  // 團膳只收早上一版（2026-11-04 起不再傳 09:20 追加／減量），這裡只對照早上送出的份數，累積經驗用
-  let m2;
-  if(!sent) m2 = '訂餐 App 今天還沒記錄送出份數。';
-  else if(noData) m2 = `今天送出 ${sent.total} 份，還沒有常客進園資料。`;
-  else {
-    const d2 = dispatch - sent.people;
-    m2 = `今天送出 ${sent.people} 人份（總訂 ${sent.total} 份含換菜）；依進園推估 ${dispatch} 人，`
-       + (d2>0 ? `可能不夠 ${d2} 份` : d2<0 ? `可能多 ${-d2} 份` : '剛好') + '。';
-  }
-  $('msg2').textContent = m2;
-  $('msg2-state').textContent = locked ? '・09:20 已鎖定' : '・09:20 前隨進園人數變動';
+  // 團膳只收早上一版（2026-11-05 起拿掉 09:20 那張卡）
 
   // 實際刷卡比對
   let swipes = [];
