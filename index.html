@@ -48,7 +48,7 @@ header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-
 .step.done .n::after{content:" ✓";color:var(--good)}
 .step.now{background:var(--accent-bg)}
 .step.now .t,.step.now .s{color:var(--accent)}
-.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}   /* 第一版由訂餐 App 自動帶入，不再需要複製卡 */
 .big{display:flex;flex-direction:column;gap:10px}
 .label{font-size:13px;color:var(--mute);letter-spacing:1px}
 .bignum{font-family:var(--mono);font-weight:600;font-size:76px;line-height:1;letter-spacing:-2px}
@@ -142,14 +142,6 @@ tr.total td{border-bottom:none;font-weight:700}
           <div class="kpi miss"><div class="v" id="k-miss">--</div><div class="k">放鳥：進園沒吃</div></div>
           <div class="kpi extra"><div class="v" id="k-extra">--</div><div class="k">天降奇兵：非常客</div></div>
         </div>
-      </div>
-    </div>
-    <div class="panel msgs">
-      <div class="msg">
-        <div class="to"><span>08:30 第一版・填入訂餐 App 的今日總份數，由 App 產生明細傳給團膳</span></div>
-        <div class="body" id="msg1">--</div>
-        <button class="btn" type="button" data-copy="msg1">複製</button>
-        <span class="toast" id="toast-msg1" aria-live="polite"></span>
       </div>
     </div>
   </section>
@@ -368,7 +360,6 @@ async function refresh(){
 
   // LINE 訊息
   const md = `${Number(now.date.slice(5,7))}/${Number(now.date.slice(8,10))}`;
-  $('msg1').textContent = base.value ? String(base.value) : '今天是假日，沒有第一版預估量。';
   // 團膳只收早上一版（2026-11-05 起拿掉 09:20 那張卡）
 
   // 實際刷卡比對
