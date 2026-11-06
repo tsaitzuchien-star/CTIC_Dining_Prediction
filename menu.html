@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>中創園區 本週菜單</title>
+<!-- 嵌入中創生活（Google 協作平台）用：讀「中創園區每週菜單」試算表的發佈 CSV，更新試算表就會自動更新（2026-11-06） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{--fg:#1f2937;--muted:#6b7280;--line:#d1d5db;--bg:#efefef;--accent:#2b7a8c}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:var(--fg);background:var(--bg)}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+.tabs{display:flex;justify-content:center;gap:8px;margin-bottom:12px}
+.tabs button{border:1px solid var(--line);background:#fff;color:var(--fg);padding:6px 16px;border-radius:999px;font-size:14px;cursor:pointer}
+.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.day{text-align:center;padding:10px 4px}
+.day.today{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.date{font-size:20px;font-weight:800;line-height:1.2}
+.lab{font-size:11px;color:var(--muted);margin-top:14px}
+.main{font-size:16px;font-weight:700;margin-top:4px}
+.dish{font-size:15px;font-weight:600;margin-top:6px}
+.rule{width:60%;margin:12px auto 0;border-top:1px dashed var(--line)}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:30px 0}
+@media (max-width:640px){.week{grid-template-columns:1fr}.day{border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="week" id="week"><div class="empty">菜單載入中…</div></div>
+</div>
+<script>
+const MENU_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT9QdhFOdM2cp7FI1qu4VNRvwOF6mHDJZ7OP0iYTu2shMiF5PrZI3lUzyP436KyBV3uv49akqBytF47/pub?output=csv';
+const DAY = ['日','一','二','三','四','五','六'];
+
+function taipeiToday(){
+  const p = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  return new Date(p+'T12:00:00');
+}
+function ymd(d){ return d.toISOString().slice(0,10); }
+function norm(s){ const m=(s||'').trim().match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/); return m?`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`:''; }
+function monday(d){ const x=new Date(d); const w=x.getDay(); x.setDate(x.getDate()-((w+6)%7)); return x; }
+
+function render(rows, mon, today){
+  const days = [...Array(5)].map((_,i)=>{ const d=new Date(mon); d.setDate(d.getDate()+i); return d; });
+  const html = days.map(d=>{
+    const r = rows[ymd(d)];
+    const md = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+    if(!r) return `<div class="day"><div class="date">${md}<br>(${DAY[d.getDay()]})</div><div class="lab">尚未公布</div></div>`;
+    const sides = ['配菜1','配菜2','配菜3','配菜4'].map(k=>r[k]).filter(Boolean);
+    return `<div class="day${ymd(d)===ymd(today)?' today':''}">
+      <div class="date">${md}<br>(${DAY[d.getDay()]})</div>
+      <div class="lab">主食</div><div class="main">白米飯</div><div class="rule"></div>
+      <div class="lab">配菜</div><div class="main">${r['主菜']||''}</div>
+      ${sides.map(s=>`<div class="dish">${s}</div>`).join('')}
+      <div class="rule"></div>
+      <div class="lab">湯品</div><div class="dish">${r['湯品']||''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('week').innerHTML = html;
+}
+
+Papa.parse(MENU_CSV+'&t='+Date.now(), {download:true, header:true, skipEmptyLines:true,
+  complete: res => {
+    const rows = {}; res.data.forEach(r=>{ const d=norm(r['日期']); if(d) rows[d]=r; });
+    const today = taipeiToday();
+    let thisMon = monday(today);
+    if(today.getDay()===6 || today.getDay()===0){ thisMon.setDate(thisMon.getDate()+7); }   // 週末直接看下週
+    const nextMon = new Date(thisMon); nextMon.setDate(nextMon.getDate()+7);
+    const hasNext = [...Array(5)].some((_,i)=>{ const d=new Date(nextMon); d.setDate(d.getDate()+i); return rows[ymd(d)]; });
+    const tabs = document.getElementById('tabs');
+    const show = (mon, btn) => { render(rows, mon, today); [...tabs.children].forEach(b=>b.classList.toggle('on', b===btn)); };
+    const mk = (label, mon) => { const b=document.createElement('button'); b.textContent=label; b.onclick=()=>show(mon,b); tabs.appendChild(b); return b; };
+    const b1 = mk('本週菜單', thisMon);
+    if(hasNext) mk('下週菜單', nextMon);
+    show(thisMon, b1);
+  },
+  error: () => { document.getElementById('week').innerHTML = '<div class="empty">菜單暫時讀不到，請稍後再試。</div>'; }
+});
+</script>
+</body>
+</html>
