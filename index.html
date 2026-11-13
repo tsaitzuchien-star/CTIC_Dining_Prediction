@@ -112,7 +112,7 @@ tr.total td{border-bottom:none;font-weight:700}
     <div class="chips">
       <span class="chip" id="fresh-chip"><span class="dot"></span><span id="fresh-text">讀取門禁資料中…</span></span>
       <span class="chip" id="weather-chip" hidden></span>
-      <span class="chip info" id="friday-chip" hidden>週五外食日・×0.85</span>
+      <span class="chip info" id="friday-chip" hidden>週五外食日・用週五出席率</span>
     </div>
   </header>
 
@@ -184,6 +184,8 @@ const orderUrl   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSv8X_NJDPjS
 // ===== 參數（與 ctic_daily_record.py 一致）=====
 const FRIDAY_FACTOR = 0.85;
 const RAIN_FACTOR = 1.03;
+const CALIB_SPECIAL = 6;   // 週五、雨天各看最近幾次
+const WEATHER_CSV = 'https://raw.githubusercontent.com/tsaitzuchien-star/CTIC_Dining_Prediction/main/data/weather.csv?x=1';   // GitHub 每天抓的天氣
 const CALIB_DEFAULT = { n0820:2.6, n0920:1.06, nAll:0.90 };   // 出席率預設（11/3、11/4 實測），資料夠了會自動校正
 const CALIB_DAYS = 10, CALIB_MIN = 3;
 const LOCK_TIME = '09:20';              // 回報團膳的時間，之後數字鎖定
@@ -247,14 +249,30 @@ function parseTrend(rows){
              n0820: parseInt(r['08:20已到常客'])||0, n0920: parseInt(r['09:20已到常客'])||0, nAll: parseInt(r['全日已到常客'])||0 };
   }).filter(r=>r.date);
 }
-// 出席率係數（與 ctic_daily_record.py calibration 相同）：最近 10 個非週五工作日 實際用餐÷已到常客 的中位數
-function calibration(rows, today){
-  const pick = key => {
-    const v = rows.filter(r=>r.date<today && r.actual>0 && r[key]>0 && new Date(r.date+'T12:00:00').getDay()!==5)
-                  .slice(-CALIB_DAYS).map(r=>r.actual/r[key]);
-    return v.length>=CALIB_MIN ? { v:median(v), n:v.length } : { v:CALIB_DEFAULT[key], n:0 };
+// 出席率係數（與 ctic_daily_record.py calibration 相同）：最近 10 個非週五、沒下雨工作日 實際用餐÷已到常客 的中位數
+// 週五、雨天（2026-11-13 起自動校正）：週五用最近 6 個沒下雨週五自己的出席率（不足 3 個先用平日×0.85）；
+// 雨天係數 = 最近 6 個下雨平日「全日出席率 ÷ 平日全日出席率」中位數（不足 3 天先用 1.03）
+function calibration(rows, today, wx){
+  const ok = rows.filter(r=>r.date<today && r.actual>0);
+  const dow = r => new Date(r.date+'T12:00:00').getDay();
+  const rain = r => (wx[r.date]||{})['09點下雨']==='是';
+  const pick = (list, key, n, fallback) => {
+    const v = list.filter(r=>r[key]>0).slice(-n).map(r=>r.actual/r[key]);
+    return v.length>=CALIB_MIN ? { v:median(v), n:v.length } : { v:fallback, n:0 };
   };
-  return { r0820:pick('n0820'), r0920:pick('n0920'), rAll:pick('nAll') };
+  const base = ok.filter(r=>dow(r)!==5 && !rain(r)), fri = ok.filter(r=>dow(r)===5 && !rain(r));
+  const out = {};
+  [['r0820','n0820'],['r0920','n0920'],['rAll','nAll']].forEach(([k,key])=>{
+    out[k] = pick(base, key, CALIB_DAYS, CALIB_DEFAULT[key]);
+    out['f'+k] = pick(fri, key, CALIB_SPECIAL, out[k].v*FRIDAY_FACTOR);
+  });
+  const wet = ok.filter(r=>dow(r)!==5 && rain(r) && r.nAll>0).slice(-CALIB_SPECIAL).map(r=>r.actual/r.nAll/out.rAll.v);
+  out.rain = wet.length>=CALIB_MIN ? { v:median(wet), n:wet.length } : { v:RAIN_FACTOR, n:0 };
+  return out;
+}
+async function loadWeatherCsv(){
+  try{ const rows = await parseCsv(WEATHER_CSV); const m={}; rows.forEach(r=>{ if(r['日期']) m[r['日期']]=r; }); return m; }
+  catch(e){ return {}; }
 }
 function hasActualToday(actRes, today){
   return actRes.status==='fulfilled' && actRes.value.some(r=>{ const d=normDate(r['Date']||r['日期']||''); return !d || d===today; });
@@ -276,8 +294,9 @@ async function refresh(){
   $('today-text').textContent = `${now.date.replace(/-/g,'/')}（${DAY_NAMES[now.dow]}）`;
   $('last-update').textContent = now.hm;
 
-  const [trendRes, predRes, actRes, weather, orderRes] = await Promise.allSettled([
-    parseCsv(trendUrl), parseCsv(predictUrl), parseCsv(actualUrl), getWeather(now.date), parseCsv(orderUrl)]);
+  const [trendRes, predRes, actRes, weather, orderRes, wxRes] = await Promise.allSettled([
+    parseCsv(trendUrl), parseCsv(predictUrl), parseCsv(actualUrl), getWeather(now.date), parseCsv(orderUrl), loadWeatherCsv()]);
+  const wx = wxRes.status==='fulfilled' ? wxRes.value : {};
 
   // 趨勢紀錄
   if(trendRes.status==='fulfilled'){ trendRows = parseTrend(trendRes.value); } else errors.push('趨勢紀錄');
@@ -329,13 +348,17 @@ async function refresh(){
   const beforeLock = regulars.filter(r=>r.t && r.t <= lockTs).length;
   const allDay = regulars.length;
   const counted = locked ? beforeLock : allDay;
-  const cal = calibration(trendRows, now.date);
+  const cal = calibration(trendRows, now.date, wx);
   // 08:20 前人太少不推估；08:20～09:20 出席率從 08:20 的值依時間漸變到 09:20 的值；09:20 後固定用 09:20 前到的人數
+  // 週五直接用週五自己的出席率；下雨再乘依資料校正的雨天係數
   const early = !locked && now.hm < '08:20';
   const w = locked ? 1 : Math.min(1, Math.max(0, (toMin(now.hm) - toMin('08:20')) / 60));
-  const ratio = cal.r0820.v + (cal.r0920.v - cal.r0820.v) * w;
-  const dispatch = counted && !early ? applyFactors(Math.ceil(counted*ratio), isFriday, rainUsed) : 0;
-  const grand = allDay ? applyFactors(Math.ceil(allDay*cal.rAll.v), isFriday, rainNow) : 0;
+  const r8 = isFriday ? cal.fr0820.v : cal.r0820.v, r9 = isFriday ? cal.fr0920.v : cal.r0920.v;
+  const ratio = r8 + (r9 - r8) * w;
+  const rainF = cal.rain.v;
+  const withRain = (v, r) => r ? Math.ceil(v*rainF) : v;
+  const dispatch = counted && !early ? withRain(Math.ceil(counted*ratio), rainUsed) : 0;
+  const grand = allDay ? withRain(Math.ceil(allDay*(isFriday ? cal.frAll.v : cal.rAll.v)), rainNow) : 0;
 
   $('h-label').textContent = locked ? '09:20 最終派單量' : '派單量即時推算（09:20 鎖定）';
   const noData = counted===0 || early;   // 清晨、08:20 前或假日，不要顯示成「要減量」
@@ -344,16 +367,17 @@ async function refresh(){
   st.textContent = early ? `08:20 後開始推估（目前已到常客 ${counted}）` : noData ? '等待常客進園資料' : locked?'已鎖定，不再變動':'隨進園人數即時變動';
   $('h-calc').innerHTML = noData ? '' : [
     [locked?'09:20 前已到常客':'目前已到常客', counted],
-    ['× 出席率', ratio.toFixed(2)],
-    isFriday?['× 週五', FRIDAY_FACTOR]:null,
-    rainUsed?['× 雨天', RAIN_FACTOR]:null
+    [isFriday ? '× 週五出席率' : '× 出席率', ratio.toFixed(2)],
+    rainUsed?['× 雨天', rainF.toFixed(2)]:null
   ].filter(Boolean).map(c=>`<span class="tok">${c[0]} <b>${c[1]}</b></span>`).join('<span class="op">→</span>')
    + `<span class="op">=</span><span class="tok"><b>${dispatch}</b> 份</span>`;
   $('base-num').textContent = base.value || '--';
   $('base-basis').textContent = base.basis;
   $('grand-predict').textContent = (now.hm >= '11:00' || hasActualToday(actRes, now.date)) && grand ? grand : '--';   // 中午前常客還在陸續進園
   $('calib-note').textContent = `出席率 09:20×${cal.r0920.v.toFixed(2)}・全日×${cal.rAll.v.toFixed(2)}`
-    + (cal.rAll.n ? `（依最近 ${cal.rAll.n} 個工作日自動校正）` : '（資料累積中，先用預設值）');
+    + (cal.rAll.n ? `（依最近 ${cal.rAll.n} 個工作日自動校正）` : '（資料累積中，先用預設值）')
+    + `｜週五 09:20×${cal.fr0920.v.toFixed(2)}` + (cal.fr0920.n ? `（${cal.fr0920.n} 個週五）` : '（先用平日×0.85）')
+    + `｜雨天×${rainF.toFixed(2)}` + (cal.rain.n ? `（${cal.rain.n} 個雨天）` : '（先用 1.03）');
   const delta = dispatch - base.value, dp=$('h-delta');
   if(base.value && !noData){ dp.hidden=false; dp.className='pill '+(delta>0?'up':delta<0?'down':'same');
     dp.textContent = delta>0?`比第一版多 ${delta} 份`:delta<0?`比第一版少 ${-delta} 份`:'與第一版相同'; } else dp.hidden=true;
