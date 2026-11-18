@@ -1,0 +1,43 @@
+name: 預測模型自動校準
+
+# 台灣時間平日 14:45、16:30（UTC 06:45、08:30）各跑一次：下午一條龍寫完趨勢紀錄後重算各方法誤差、
+# 自動重校係數、自動選模，結果寫到 data/model_params.json（戰情室、訂餐 App 讀這個檔）。
+on:
+  schedule:
+    - cron: '45 6 * * 1-5'
+    - cron: '30 8 * * 1-5'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/calibrate_models.py'
+      - '.github/workflows/calibrate.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-commit
+  cancel-in-progress: false
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/calibrate_models.py
+      - name: 顯示結果
+        run: |
+          cat data/model_report.json || true
+          python -c "import json;p=json.load(open('data/model_params.json'));print(json.dumps({k:p[k] for k in ['first_version','ratios','suggest','holiday_eve','sources']},ensure_ascii=False,indent=1))"
+      - name: 有變動才提交（只在 main）
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "calibrate-bot"
+          git config user.email "calibrate-bot@users.noreply.github.com"
+          git add data/model_params.json data/model_daily.csv data/model_report.json data/holidays_*.json
+          git diff --cached --quiet && exit 0
+          git commit -m "自動校準預測模型"
+          for i in 1 2 3; do git pull --rebase && git push && break; sleep 5; done

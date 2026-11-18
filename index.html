@@ -270,6 +270,34 @@ function calibration(rows, today, wx){
   out.rain = wet.length>=CALIB_MIN ? { v:median(wet), n:wet.length } : { v:RAIN_FACTOR, n:0 };
   return out;
 }
+// ---- 自動校準參數（GitHub 每天下午 scripts/calibrate_models.py 依實際誤差重算，2026-11-18 起）----
+async function loadModelParams(){
+  try{ const r = await fetch('data/model_params.json?t='+Date.now()); return r.ok ? await r.json() : null; }
+  catch(e){ return null; }
+}
+// 出席率改用自動校準值（用快照當下人數算，跟早上看到的人數同口徑）；沒有就維持原本的算法
+function applyModelRatios(cal, mp){
+  const r = mp && mp.ratios; if(!r) return cal;
+  [['r0820','r0820'],['r0920','r0920'],['fr0820','fr0820'],['fr0920','fr0920']].forEach(([k,pk])=>{
+    if(r[pk]>0) cal[k] = { v:r[pk], n:r[pk+'_days']||0, auto:true };
+  });
+  return cal;
+}
+// 第一版：依自動選模結果決定要不要混入 08:20 已到常客，連假前一天再乘自動校準的係數
+function applyModelFirst(base, mp, today, n0820, hm, isFriday, cal){
+  if(!mp || !base.value) return base;
+  const fv = mp.first_version || {}, he = mp.holiday_eve || {};
+  let v = base.value, basis = base.basis;
+  if(fv.method==='blend0820' && fv.w0820>0 && hm>='08:20' && n0820>0){
+    const r8 = isFriday ? cal.fr0820.v : cal.r0820.v;
+    v = Math.round((1-fv.w0820)*v + fv.w0820*n0820*r8);
+    basis += `；混入 08:20 已到常客 ${n0820}×${r8.toFixed(2)}（比重 ${fv.w0820}，自動選模）`;
+  }
+  if(he.enabled && he.factor && (he.upcoming||[]).includes(today)){
+    v = Math.round(v*he.factor); basis += `；連假前一天 ×${he.factor}（自動校準）`;
+  }
+  return { value:v, basis };
+}
 async function loadWeatherCsv(){
   try{ const rows = await parseCsv(WEATHER_CSV); const m={}; rows.forEach(r=>{ if(r['日期']) m[r['日期']]=r; }); return m; }
   catch(e){ return {}; }
@@ -294,15 +322,16 @@ async function refresh(){
   $('today-text').textContent = `${now.date.replace(/-/g,'/')}（${DAY_NAMES[now.dow]}）`;
   $('last-update').textContent = now.hm;
 
-  const [trendRes, predRes, actRes, weather, orderRes, wxRes] = await Promise.allSettled([
-    parseCsv(trendUrl), parseCsv(predictUrl), parseCsv(actualUrl), getWeather(now.date), parseCsv(orderUrl), loadWeatherCsv()]);
+  const [trendRes, predRes, actRes, weather, orderRes, wxRes, mpRes] = await Promise.allSettled([
+    parseCsv(trendUrl), parseCsv(predictUrl), parseCsv(actualUrl), getWeather(now.date), parseCsv(orderUrl), loadWeatherCsv(), loadModelParams()]);
   const wx = wxRes.status==='fulfilled' ? wxRes.value : {};
+  const mp = mpRes.status==='fulfilled' ? mpRes.value : null;
 
   // 趨勢紀錄
   if(trendRes.status==='fulfilled'){ trendRows = parseTrend(trendRes.value); } else errors.push('趨勢紀錄');
   const todayTrend = trendRows.find(r=>r.date===now.date);
   const todayCash = todayTrend ? todayTrend.cash : 0;
-  const base = firstVersionBase(trendRows, now.date, now.dow);
+  let base = firstVersionBase(trendRows, now.date, now.dow);
   // 訂餐 App 08:30 實際送出的份數（沒有就用戰情室第一版）
   const orderRow = orderRes.status==='fulfilled' ? orderRes.value.filter(r=>normDate(r['日期'])===now.date).pop() : null;
   const sent = orderRow && parseInt(orderRow['用餐人數'])>0
@@ -348,7 +377,8 @@ async function refresh(){
   const beforeLock = regulars.filter(r=>r.t && r.t <= lockTs).length;
   const allDay = regulars.length;
   const counted = locked ? beforeLock : allDay;
-  const cal = calibration(trendRows, now.date, wx);
+  const cal = applyModelRatios(calibration(trendRows, now.date, wx), mp);
+  base = applyModelFirst(base, mp, now.date, regulars.filter(r=>r.t && r.t <= '08:20:00').length, now.hm, isFriday, cal);
   // 08:20 前人太少不推估；08:20～09:20 出席率從 08:20 的值依時間漸變到 09:20 的值；09:20 後固定用 09:20 前到的人數
   // 週五直接用週五自己的出席率；下雨再乘依資料校正的雨天係數
   const early = !locked && now.hm < '08:20';
@@ -377,7 +407,8 @@ async function refresh(){
   $('calib-note').textContent = `出席率 09:20×${cal.r0920.v.toFixed(2)}・全日×${cal.rAll.v.toFixed(2)}`
     + (cal.rAll.n ? `（依最近 ${cal.rAll.n} 個工作日自動校正）` : '（資料累積中，先用預設值）')
     + `｜週五 09:20×${cal.fr0920.v.toFixed(2)}` + (cal.fr0920.n ? `（${cal.fr0920.n} 個週五）` : '（先用平日×0.85）')
-    + `｜雨天×${rainF.toFixed(2)}` + (cal.rain.n ? `（${cal.rain.n} 個雨天）` : '（先用 1.03）');
+    + `｜雨天×${rainF.toFixed(2)}` + (cal.rain.n ? `（${cal.rain.n} 個雨天）` : '（先用 1.03）')
+    + (mp ? `｜自動校準 ${mp.updated}` : '');
   const delta = dispatch - base.value, dp=$('h-delta');
   if(base.value && !noData){ dp.hidden=false; dp.className='pill '+(delta>0?'up':delta<0?'down':'same');
     dp.textContent = delta>0?`比第一版多 ${delta} 份`:delta<0?`比第一版少 ${-delta} 份`:'與第一版相同'; } else dp.hidden=true;
