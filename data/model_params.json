@@ -2,35 +2,35 @@
   "first_version": {
     "method": "hist8",
     "reason": "維持",
-    "w0820": 0.5,
+    "w0820": 0.25,
     "w0820_fit_mae": 4.8,
-    "w0820_fit_days": 8,
+    "w0820_fit_days": 9,
     "mae_recent": {
       "hist8": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 5.9,
+        "days": 9
       },
       "blend0820": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 6.3,
+        "days": 9
       }
     }
   },
   "ratios": {
-    "r0820": 2.81,
-    "r0820_days": 0,
-    "r0920": 0.968,
-    "r0920_days": 0,
-    "fr0820": 2.81,
-    "fr0820_days": 0,
-    "fr0920": 0.968,
-    "fr0920_days": 0,
+    "r0820": 2.967,
+    "r0820_days": 3,
+    "r0920": 1.035,
+    "r0920_days": 3,
+    "fr0820": 2.967,
+    "fr0820_days": 3,
+    "fr0920": 1.035,
+    "fr0920_days": 3,
     "note": "出席率＝實際用餐（含現金）÷ 預測快照當下的已到常客（與早上看到的人數同口徑）"
   },
   "suggest": {
     "door_weight": 0.25,
-    "fit_mae": 4.0,
-    "fit_days": 8,
+    "fit_mae": 3.6,
+    "fit_days": 9,
     "note": "App 建議份數 = 第一版 ×(1−比重) + 進園推估 × 比重"
   },
   "holiday_eve": {
@@ -60,8 +60,8 @@
     ],
     "calendar": "2026 政府行事曆、2027 政府行事曆"
   },
-  "updated": "2026-11-20 01:35",
-  "data_until": "2026-11-19",
+  "updated": "2026-11-20 23:47",
+  "data_until": "2026-11-20",
   "sources": {
     "trend": "ok",
     "order": "ok",
@@ -71,103 +71,103 @@
   "scoreboard": {
     "common10": {
       "hist8": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 5.9,
+        "days": 9
       },
       "reg0820": {
-        "mae": 7.4,
-        "days": 8
+        "mae": 8.8,
+        "days": 9
       },
       "blend0820": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 6.3,
+        "days": 9
       },
       "hist8_eve": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 5.9,
+        "days": 9
       },
       "door0920": {
-        "mae": 7.5,
-        "days": 8
+        "mae": 8.0,
+        "days": 9
       },
       "suggest_half": {
         "mae": 4.2,
-        "days": 8
+        "days": 9
       },
       "suggest_auto": {
-        "mae": 4.2,
-        "days": 8
+        "mae": 3.8,
+        "days": 9
       },
       "order": {
-        "mae": 6.8,
-        "days": 8
+        "mae": 6.1,
+        "days": 9
       }
     },
     "common_all": {
       "hist8": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 5.9,
+        "days": 9
       },
       "reg0820": {
-        "mae": 7.4,
-        "days": 8
+        "mae": 8.8,
+        "days": 9
       },
       "blend0820": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 6.3,
+        "days": 9
       },
       "hist8_eve": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 5.9,
+        "days": 9
       },
       "door0920": {
-        "mae": 7.5,
-        "days": 8
+        "mae": 8.0,
+        "days": 9
       },
       "suggest_half": {
         "mae": 4.2,
-        "days": 8
+        "days": 9
       },
       "suggest_auto": {
-        "mae": 4.2,
-        "days": 8
+        "mae": 3.8,
+        "days": 9
       },
       "order": {
-        "mae": 6.8,
-        "days": 8
+        "mae": 6.1,
+        "days": 9
       }
     },
     "last10": {
       "hist8": {
-        "mae": 9.1,
+        "mae": 8.0,
         "days": 10
       },
       "reg0820": {
-        "mae": 7.4,
-        "days": 8
+        "mae": 8.8,
+        "days": 9
       },
       "blend0820": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 6.3,
+        "days": 9
       },
       "hist8_eve": {
-        "mae": 9.1,
+        "mae": 8.0,
         "days": 10
       },
       "door0920": {
-        "mae": 7.5,
-        "days": 8
+        "mae": 8.0,
+        "days": 9
       },
       "suggest_half": {
         "mae": 4.2,
-        "days": 8
+        "days": 9
       },
       "suggest_auto": {
-        "mae": 4.2,
-        "days": 8
+        "mae": 3.8,
+        "days": 9
       },
       "order": {
-        "mae": 7.8,
+        "mae": 6.0,
         "days": 10
       }
     },
@@ -177,66 +177,66 @@
         "days": 20
       },
       "reg0820": {
-        "mae": 7.4,
-        "days": 8
+        "mae": 8.8,
+        "days": 9
       },
       "blend0820": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 6.3,
+        "days": 9
       },
       "hist8_eve": {
         "mae": 7.8,
         "days": 20
       },
       "door0920": {
-        "mae": 7.5,
-        "days": 8
+        "mae": 8.0,
+        "days": 9
       },
       "suggest_half": {
         "mae": 4.2,
-        "days": 8
+        "days": 9
       },
       "suggest_auto": {
-        "mae": 4.2,
-        "days": 8
+        "mae": 3.8,
+        "days": 9
       },
       "order": {
-        "mae": 7.9,
-        "days": 12
+        "mae": 7.4,
+        "days": 13
       }
     },
     "all": {
       "hist8": {
-        "mae": 7.8,
-        "days": 114
+        "mae": 7.7,
+        "days": 115
       },
       "reg0820": {
-        "mae": 7.4,
-        "days": 8
+        "mae": 8.8,
+        "days": 9
       },
       "blend0820": {
-        "mae": 6.1,
-        "days": 8
+        "mae": 6.3,
+        "days": 9
       },
       "hist8_eve": {
-        "mae": 7.8,
-        "days": 114
+        "mae": 7.7,
+        "days": 115
       },
       "door0920": {
-        "mae": 7.5,
-        "days": 8
+        "mae": 8.0,
+        "days": 9
       },
       "suggest_half": {
         "mae": 4.2,
-        "days": 8
+        "days": 9
       },
       "suggest_auto": {
-        "mae": 4.2,
-        "days": 8
+        "mae": 3.8,
+        "days": 9
       },
       "order": {
-        "mae": 8.7,
-        "days": 14
+        "mae": 8.2,
+        "days": 15
       }
     }
   },
@@ -247,15 +247,15 @@
       "avg_actual_minus_order": 2.5
     },
     "整塊": {
-      "days": 6,
+      "days": 7,
       "avg_missed": 0.0,
-      "avg_actual_minus_order": -5.0
+      "avg_actual_minus_order": -4.4
     },
     "reasons": {
       "（未填）": {
-        "days": 4,
-        "avg_add": -1.5,
-        "avg_actual_minus_order": 0.2
+        "days": 5,
+        "avg_add": -1.0,
+        "avg_actual_minus_order": 0.0
       },
       "其他": {
         "days": 1,
