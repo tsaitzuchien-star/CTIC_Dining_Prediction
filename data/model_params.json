@@ -3,23 +3,23 @@
     "method": "hist8",
     "reason": "維持",
     "w0820": 0.25,
-    "w0820_fit_mae": 4.2,
-    "w0820_fit_days": 11,
+    "w0820_fit_mae": 4.6,
+    "w0820_fit_days": 12,
     "mae_recent": {
       "hist8": {
-        "mae": 5.0,
+        "mae": 5.4,
         "days": 10
       },
       "blend0820": {
-        "mae": 4.9,
+        "mae": 5.7,
         "days": 10
       }
     }
   },
   "ratios": {
-    "r0820": 3.38,
+    "r0820": 3.471,
     "r0820_days": 10,
-    "r0920": 1.187,
+    "r0920": 1.202,
     "r0920_days": 10,
     "fr0820": 2.967,
     "fr0820_days": 3,
@@ -30,7 +30,7 @@
   "suggest": {
     "door_weight": 0.25,
     "fit_mae": 3.4,
-    "fit_days": 11,
+    "fit_days": 12,
     "note": "App 建議份數 = 第一版 ×(1−比重) + 進園推估 × 比重"
   },
   "holiday_eve": {
@@ -60,8 +60,8 @@
     ],
     "calendar": "2026 政府行事曆、2027 政府行事曆"
   },
-  "updated": "2026-11-25 03:40",
-  "data_until": "2026-11-24",
+  "updated": "2026-11-26 01:39",
+  "data_until": "2026-11-25",
   "sources": {
     "trend": "ok",
     "order": "ok",
@@ -71,27 +71,27 @@
   "scoreboard": {
     "common10": {
       "hist8": {
-        "mae": 5.0,
+        "mae": 5.4,
         "days": 10
       },
       "reg0820": {
-        "mae": 10.1,
+        "mae": 11.8,
         "days": 10
       },
       "blend0820": {
-        "mae": 4.9,
+        "mae": 5.7,
         "days": 10
       },
       "hist8_eve": {
-        "mae": 5.0,
+        "mae": 5.4,
         "days": 10
       },
       "door0920": {
-        "mae": 11.3,
+        "mae": 10.5,
         "days": 10
       },
       "suggest_half": {
-        "mae": 5.2,
+        "mae": 5.0,
         "days": 10
       },
       "suggest_auto": {
@@ -99,67 +99,67 @@
         "days": 10
       },
       "order": {
-        "mae": 5.6,
+        "mae": 5.5,
         "days": 10
       }
     },
     "common_all": {
       "hist8": {
         "mae": 5.5,
-        "days": 11
+        "days": 12
       },
       "reg0820": {
-        "mae": 9.6,
-        "days": 11
+        "mae": 10.5,
+        "days": 12
       },
       "blend0820": {
-        "mae": 5.5,
-        "days": 11
+        "mae": 5.8,
+        "days": 12
       },
       "hist8_eve": {
         "mae": 5.5,
-        "days": 11
+        "days": 12
       },
       "door0920": {
-        "mae": 10.5,
-        "days": 11
+        "mae": 9.7,
+        "days": 12
       },
       "suggest_half": {
-        "mae": 5.1,
-        "days": 11
+        "mae": 4.8,
+        "days": 12
       },
       "suggest_auto": {
-        "mae": 3.5,
-        "days": 11
+        "mae": 3.6,
+        "days": 12
       },
       "order": {
-        "mae": 6.0,
-        "days": 11
+        "mae": 6.2,
+        "days": 12
       }
     },
     "last10": {
       "hist8": {
-        "mae": 5.0,
+        "mae": 5.4,
         "days": 10
       },
       "reg0820": {
-        "mae": 10.1,
+        "mae": 11.8,
         "days": 10
       },
       "blend0820": {
-        "mae": 4.9,
+        "mae": 5.7,
         "days": 10
       },
       "hist8_eve": {
-        "mae": 5.0,
+        "mae": 5.4,
         "days": 10
       },
       "door0920": {
-        "mae": 11.3,
+        "mae": 10.5,
         "days": 10
       },
       "suggest_half": {
-        "mae": 5.2,
+        "mae": 5.0,
         "days": 10
       },
       "suggest_auto": {
@@ -167,76 +167,76 @@
         "days": 10
       },
       "order": {
-        "mae": 5.6,
+        "mae": 5.5,
         "days": 10
       }
     },
     "last20": {
       "hist8": {
-        "mae": 7.5,
+        "mae": 7.3,
         "days": 20
       },
       "reg0820": {
-        "mae": 9.6,
-        "days": 11
+        "mae": 10.5,
+        "days": 12
       },
       "blend0820": {
-        "mae": 5.5,
-        "days": 11
+        "mae": 5.8,
+        "days": 12
       },
       "hist8_eve": {
-        "mae": 7.5,
+        "mae": 7.3,
         "days": 20
       },
       "door0920": {
-        "mae": 10.5,
-        "days": 11
+        "mae": 9.7,
+        "days": 12
       },
       "suggest_half": {
-        "mae": 5.1,
-        "days": 11
+        "mae": 4.8,
+        "days": 12
       },
       "suggest_auto": {
-        "mae": 3.5,
-        "days": 11
+        "mae": 3.6,
+        "days": 12
       },
       "order": {
-        "mae": 7.1,
-        "days": 15
+        "mae": 7.2,
+        "days": 16
       }
     },
     "all": {
       "hist8": {
-        "mae": 7.7,
-        "days": 117
+        "mae": 7.6,
+        "days": 118
       },
       "reg0820": {
-        "mae": 9.6,
-        "days": 11
+        "mae": 10.5,
+        "days": 12
       },
       "blend0820": {
-        "mae": 5.5,
-        "days": 11
+        "mae": 5.8,
+        "days": 12
       },
       "hist8_eve": {
-        "mae": 7.7,
-        "days": 117
+        "mae": 7.6,
+        "days": 118
       },
       "door0920": {
-        "mae": 10.5,
-        "days": 11
+        "mae": 9.7,
+        "days": 12
       },
       "suggest_half": {
-        "mae": 5.1,
-        "days": 11
+        "mae": 4.8,
+        "days": 12
       },
       "suggest_auto": {
-        "mae": 3.5,
-        "days": 11
+        "mae": 3.6,
+        "days": 12
       },
       "order": {
         "mae": 7.9,
-        "days": 17
+        "days": 18
       }
     }
   },
@@ -247,15 +247,15 @@
       "avg_actual_minus_order": 2.9
     },
     "整塊": {
-      "days": 8,
+      "days": 9,
       "avg_missed": 0.0,
-      "avg_actual_minus_order": -4.6
+      "avg_actual_minus_order": -3.1
     },
     "reasons": {
       "（未填）": {
-        "days": 7,
-        "avg_add": 1.1,
-        "avg_actual_minus_order": -0.1
+        "days": 8,
+        "avg_add": 0.6,
+        "avg_actual_minus_order": 1.0
       },
       "其他": {
         "days": 1,
